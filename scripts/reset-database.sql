@@ -1,0 +1,8 @@
+-- Drop all tables
+DROP TABLE IF EXISTS sessions CASCADE;
+DROP TABLE IF EXISTS borrowings CASCADE;
+DROP TABLE IF EXISTS items CASCADE;
+DROP TABLE IF EXISTS users CASCADE;
+
+-- Drop extension
+DROP EXTENSION IF EXISTS "uuid-ossp";
