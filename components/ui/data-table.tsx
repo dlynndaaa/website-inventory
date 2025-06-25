@@ -3,8 +3,6 @@
 import { cn } from "@/lib/utils"
 import { getPaginationInfo } from "@/lib/utils/pagination"
 
-import type React from "react"
-
 import { useState } from "react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -35,6 +33,7 @@ interface DataTableProps<T> {
     onPageChange: (page: number) => void
   }
   isLoading?: boolean
+  userRole?: "admin" | "user"
 }
 
 export function DataTable<T extends Record<string, any>>({
@@ -80,7 +79,6 @@ export function DataTable<T extends Record<string, any>>({
   return (
     <>
       <div className="p-6">
-        {/* Header */}
         <div className="flex items-center justify-between mb-6">
           <h1 className="text-2xl font-bold text-gray-900">{title}</h1>
           <div className="flex items-center space-x-4">
@@ -103,7 +101,6 @@ export function DataTable<T extends Record<string, any>>({
           </div>
         </div>
 
-        {/* Table */}
         <div className="bg-white rounded-lg shadow overflow-hidden">
           {isLoading ? (
             <div className="p-8 text-center">
@@ -190,69 +187,9 @@ export function DataTable<T extends Record<string, any>>({
                 </tbody>
               </table>
 
-              {/* Pagination */}
               {pagination && paginationInfo && (
                 <div className="bg-white px-4 py-3 flex items-center justify-between border-t border-gray-200 sm:px-6">
-                  <div className="flex-1 flex justify-between sm:hidden">
-                    <Button
-                      variant="outline"
-                      onClick={() => pagination.onPageChange(pagination.current - 1)}
-                      disabled={pagination.current === 1}
-                    >
-                      Previous
-                    </Button>
-                    <Button
-                      variant="outline"
-                      onClick={() => pagination.onPageChange(pagination.current + 1)}
-                      disabled={pagination.current * pagination.pageSize >= pagination.total}
-                    >
-                      Next
-                    </Button>
-                  </div>
-                  <div className="hidden sm:flex-1 sm:flex sm:items-center sm:justify-between">
-                    <div>
-                      <p className="text-sm text-gray-700">{paginationInfo.displayText}</p>
-                    </div>
-                    <div>
-                      <nav className="relative z-0 inline-flex rounded-md shadow-sm -space-x-px">
-                        <Button
-                          variant="outline"
-                          onClick={() => pagination.onPageChange(pagination.current - 1)}
-                          disabled={pagination.current === 1}
-                          className="rounded-r-none"
-                        >
-                          Previous
-                        </Button>
-                        {Array.from({ length: Math.ceil(pagination.total / pagination.pageSize) }, (_, i) => i + 1)
-                          .slice(
-                            Math.max(0, pagination.current - 3),
-                            Math.min(Math.ceil(pagination.total / pagination.pageSize), pagination.current + 2),
-                          )
-                          .map((page) => (
-                            <button
-                              key={page}
-                              onClick={() => pagination.onPageChange(page)}
-                              className={cn(
-                                "relative inline-flex items-center px-4 py-2 border text-sm font-medium",
-                                page === pagination.current
-                                  ? "z-10 bg-blue-50 border-blue-500 text-blue-600"
-                                  : "bg-white border-gray-300 text-gray-500 hover:bg-gray-50",
-                              )}
-                            >
-                              {page}
-                            </button>
-                          ))}
-                        <Button
-                          variant="outline"
-                          onClick={() => pagination.onPageChange(pagination.current + 1)}
-                          disabled={pagination.current * pagination.pageSize >= pagination.total}
-                          className="rounded-l-none"
-                        >
-                          Next
-                        </Button>
-                      </nav>
-                    </div>
-                  </div>
+                  <p className="text-sm text-gray-700">{paginationInfo.displayText}</p>
                 </div>
               )}
             </>
@@ -260,7 +197,6 @@ export function DataTable<T extends Record<string, any>>({
         </div>
       </div>
 
-      {/* Delete Confirmation Dialog */}
       <ConfirmationDialog
         open={deleteConfirmation.open}
         onOpenChange={(open) => setDeleteConfirmation({ open, item: null })}

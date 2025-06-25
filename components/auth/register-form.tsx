@@ -99,7 +99,12 @@ export function RegisterForm({ onSubmit, onGoogleLogin, isLoading }: RegisterFor
 
       <AuthDivider />
 
-      <SocialLoginButton provider="google" onClick={onGoogleLogin} disabled={isLoading} />
+      <SocialLoginButton
+        provider="google"
+        onClick={onGoogleLogin}
+        disabled={isLoading}
+        text="Register with Google"
+      />
     </form>
   )
 }

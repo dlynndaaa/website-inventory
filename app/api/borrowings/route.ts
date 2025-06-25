@@ -2,7 +2,6 @@ import { type NextRequest, NextResponse } from "next/server";
 import pool from "@/lib/db/connection";
 import { withAuth } from "@/lib/auth/middleware";
 
-// GET /api/borrowings - Get all borrowings
 async function getBorrowingsHandler(request: NextRequest & { user: any }) {
   try {
     const { searchParams } = new URL(request.url);
@@ -10,18 +9,16 @@ async function getBorrowingsHandler(request: NextRequest & { user: any }) {
     const limit = Number.parseInt(searchParams.get("limit") || "10");
     const search = searchParams.get("search") || "";
     const status = searchParams.get("status") || "";
-
     const offset = (page - 1) * limit;
 
     let whereClause = "WHERE b.is_active = true AND b.is_deleted = false";
     const queryParams: any[] = [];
     let paramCount = 0;
 
-    // For regular users, only show their own borrowings
     if (request.user.role === "user") {
       paramCount++;
       whereClause += ` AND b.borrower_id = $${paramCount}`;
-      queryParams.push(request.user.userId);
+      queryParams.push(request.user.userId); // pastikan userId dari middleware
     }
 
     if (search) {
@@ -36,7 +33,6 @@ async function getBorrowingsHandler(request: NextRequest & { user: any }) {
       queryParams.push(status);
     }
 
-    // Get total count
     const countQuery = `
       SELECT COUNT(*) 
       FROM borrowings b
@@ -47,7 +43,6 @@ async function getBorrowingsHandler(request: NextRequest & { user: any }) {
     const countResult = await pool.query(countQuery, queryParams);
     const total = Number.parseInt(countResult.rows[0].count);
 
-    // Get borrowings with pagination
     const borrowingsQuery = `
       SELECT 
         b.id, b.quantity, b.borrow_date, b.return_date, b.actual_return_date,
@@ -87,7 +82,6 @@ async function getBorrowingsHandler(request: NextRequest & { user: any }) {
   }
 }
 
-// POST /api/borrowings - Create new borrowing
 async function createBorrowingHandler(request: NextRequest & { user: any }) {
   try {
     const body = await request.json();
@@ -108,7 +102,6 @@ async function createBorrowingHandler(request: NextRequest & { user: any }) {
       );
     }
 
-    // For regular users, they can only create borrowings for themselves
     const actualBorrowerId =
       request.user.role === "user" ? request.user.userId : borrower_id;
 
@@ -119,7 +112,6 @@ async function createBorrowingHandler(request: NextRequest & { user: any }) {
       );
     }
 
-    // Check if item exists and has enough available quantity
     const itemQuery = `
       SELECT id, name, available FROM items 
       WHERE id = $1 AND is_active = true AND is_deleted = false
@@ -138,7 +130,6 @@ async function createBorrowingHandler(request: NextRequest & { user: any }) {
       );
     }
 
-    // Check if borrower exists
     const borrowerQuery = `
       SELECT id FROM users 
       WHERE id = $1 AND is_active = true AND is_deleted = false
@@ -152,18 +143,15 @@ async function createBorrowingHandler(request: NextRequest & { user: any }) {
       );
     }
 
-    // Setelah validasi item dan borrower, tambahkan logik untuk auto-approve jika admin yang membuat
     let borrowingStatus = "pending";
     let approvedBy = null;
     let approvedDate = null;
 
-    // Jika admin yang membuat peminjaman, langsung approve dan kurangi stok
     if (request.user.role === "admin") {
       borrowingStatus = "approved";
       approvedBy = request.user.userId;
       approvedDate = new Date();
 
-      // Kurangi stok available dan tambah borrowed
       await pool.query(
         `UPDATE items SET
           available = available - $1,

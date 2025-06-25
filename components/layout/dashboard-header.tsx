@@ -35,8 +35,8 @@ export function DashboardHeader({ user, onLogout }: DashboardHeaderProps) {
         {/* Logo and Greeting */}
         <div className="flex items-center space-x-4">
           <div className="flex items-center space-x-3">
-            <div className="w-10 h-10 bg-blue-600 rounded-full flex items-center justify-center">
-              <span className="text-white font-bold text-sm">TI</span>
+            <div className="w-10 h-10 rounded-full overflow-hidden">
+              <img src="/removebg_logo_prodi.png" alt="Logo TI" className="w-full h-full object-cover" />
             </div>
             <span className="font-bold text-xl text-gray-900">SIMPEL - TI</span>
           </div>

@@ -2,41 +2,17 @@
 
 import { Button } from "@/components/ui/button"
 import { cn } from "@/lib/utils"
+import { FcGoogle } from "react-icons/fc"
 
 interface SocialLoginButtonProps {
-  provider: "google" | "facebook" | "github"
+  provider: "google" // hanya google saja
   onClick?: () => void
   disabled?: boolean
   className?: string
+  text?: string // ✅ tambahkan ini
 }
 
-const providerConfig = {
-  google: {
-    text: "Login with Google",
-    icon: "🔍", // Using emoji for now, can be replaced with proper Google icon
-    bgColor: "bg-white",
-    textColor: "text-gray-700",
-    borderColor: "border-gray-300",
-  },
-  facebook: {
-    text: "Login with Facebook",
-    icon: "📘",
-    bgColor: "bg-blue-600",
-    textColor: "text-white",
-    borderColor: "border-blue-600",
-  },
-  github: {
-    text: "Login with GitHub",
-    icon: "🐙",
-    bgColor: "bg-gray-900",
-    textColor: "text-white",
-    borderColor: "border-gray-900",
-  },
-}
-
-export function SocialLoginButton({ provider, onClick, disabled, className }: SocialLoginButtonProps) {
-  const config = providerConfig[provider]
-
+export function SocialLoginButton({ provider, onClick, disabled, className, text }: SocialLoginButtonProps) {
   return (
     <Button
       variant="outline"
@@ -44,15 +20,13 @@ export function SocialLoginButton({ provider, onClick, disabled, className }: So
       disabled={disabled}
       className={cn(
         "w-full flex items-center justify-center gap-3 py-2.5",
-        config.bgColor,
-        config.textColor,
-        config.borderColor,
+        "bg-white text-gray-700 border border-gray-300",
         "hover:opacity-90",
         className,
       )}
     >
-      <span className="text-lg">{config.icon}</span>
-      {config.text}
+      <FcGoogle className="w-5 h-5" />
+      {text ?? "Login with Google"}
     </Button>
   )
 }

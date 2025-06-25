@@ -23,6 +23,7 @@ interface Item {
 export default function ItemsPage() {
   const [data, setData] = useState<Item[]>([])
   const [isLoading, setIsLoading] = useState(true)
+  const [userRole, setUserRole] = useState<"admin" | "user">("user")
   const [formState, setFormState] = useState<{
     open: boolean
     mode: "add" | "edit" | "view"
@@ -36,6 +37,8 @@ export default function ItemsPage() {
   })
 
   useEffect(() => {
+    const role = localStorage.getItem("role")
+    setUserRole(role === "admin" ? "admin" : "user")
     loadItems()
   }, [])
 
@@ -52,18 +55,9 @@ export default function ItemsPage() {
   }
 
   const columns = [
-    {
-      key: "code" as keyof Item,
-      title: "Kode Barang",
-    },
-    {
-      key: "name" as keyof Item,
-      title: "Nama Barang",
-    },
-    {
-      key: "quantity" as keyof Item,
-      title: "Jumlah",
-    },
+    { key: "code" as keyof Item, title: "Kode Barang" },
+    { key: "name" as keyof Item, title: "Nama Barang" },
+    { key: "quantity" as keyof Item, title: "Jumlah" },
     {
       key: "available" as keyof Item,
       title: "Status",
@@ -85,17 +79,9 @@ export default function ItemsPage() {
     },
   ]
 
-  const handleAdd = () => {
-    setFormState({ open: true, mode: "add" })
-  }
-
-  const handleEdit = (item: Item) => {
-    setFormState({ open: true, mode: "edit", item })
-  }
-
-  const handleView = (item: Item) => {
-    setFormState({ open: true, mode: "view", item })
-  }
+  const handleAdd = () => setFormState({ open: true, mode: "add" })
+  const handleEdit = (item: Item) => setFormState({ open: true, mode: "edit", item })
+  const handleView = (item: Item) => setFormState({ open: true, mode: "view", item })
 
   const handleDelete = async (item: Item) => {
     try {
@@ -133,14 +119,16 @@ export default function ItemsPage() {
         data={paginatedData}
         columns={columns}
         searchPlaceholder="Search..."
-        addButtonText="Tambah Barang"
-        onAdd={handleAdd}
-        onEdit={handleEdit}
+        addButtonText={userRole === "admin" ? "Tambah Barang" : undefined}
+        userRole={userRole}
+        onAdd={userRole === "admin" ? handleAdd : undefined}
+        onEdit={userRole === "admin" ? handleEdit : undefined}
+        onDelete={userRole === "admin" ? handleDelete : undefined}
         onView={handleView}
-        onDelete={handleDelete}
         onSearch={handleSearch}
         pagination={pagination}
         isLoading={isLoading}
+        hideActions={userRole === "user"} // kalau komponen DataTable mendukung ini
       />
 
       <ItemForm

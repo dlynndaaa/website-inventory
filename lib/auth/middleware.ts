@@ -1,26 +1,27 @@
-import { type NextRequest, NextResponse } from "next/server"
-import { getSession } from "./session"
+import { type NextRequest, NextResponse } from "next/server";
+import { getSession } from "./session";
 
 export function withAuth(handler: Function, requiredRole?: string) {
   return async (request: NextRequest, context?: any) => {
     try {
-      const user = await getSession()
+      const user = await getSession();
 
       if (!user) {
-        return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+        return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
       }
 
       if (requiredRole && user.role !== requiredRole) {
-        return NextResponse.json({ error: "Forbidden" }, { status: 403 })
+        return NextResponse.json({ error: "Forbidden" }, { status: 403 });
       }
 
-      // Add user info to request
-      const requestWithUser = request as NextRequest & { user: typeof user }
-      requestWithUser.user = user
+      // Tambahkan userId secara eksplisit agar bisa digunakan di handler
+      const requestWithUser = request as NextRequest & { user: typeof user & { userId: string } };
+      requestWithUser.user = { ...user, userId: user.id };
 
-      return handler(requestWithUser, context)
+      return handler(requestWithUser, context);
     } catch (error) {
-      return NextResponse.json({ error: "Internal server error" }, { status: 500 })
+      console.error("Auth middleware error:", error);
+      return NextResponse.json({ error: "Internal server error" }, { status: 500 });
     }
-  }
+  };
 }
