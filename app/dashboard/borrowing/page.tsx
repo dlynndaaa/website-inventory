@@ -32,8 +32,18 @@ interface Borrowing {
   borrowing_letter_file_ids?: string;
 }
 
+interface CurrentUser {
+  id: string;
+  name: string;
+  email: string;
+  role: "admin" | "user";
+  student_id?: string;
+  whatsapp?: string;
+}
+
 export default function BorrowingPage() {
   const [allData, setAllData] = useState<Borrowing[]>([]);
+  const [currentUser, setCurrentUser] = useState<CurrentUser | null>(null);
   const [availableItems, setAvailableItems] = useState<
     Array<{ id: string; name: string; available: number }>
   >([]);
@@ -66,6 +76,7 @@ export default function BorrowingPage() {
     loadBorrowings();
     loadAvailableItems();
     loadBorrowers();
+    checkAuth();
   }, []);
 
   const loadBorrowings = async () => {
@@ -220,6 +231,21 @@ export default function BorrowingPage() {
     }
   };
 
+  const checkAuth = async () => {
+    try {
+      const response = await fetch("/api/auth/me");
+
+      if (response.ok) {
+        const data = await response.json();
+        setCurrentUser(data.user);
+      }
+    } catch (error) {
+      console.error("Auth check failed:", error);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
   const handleFormSubmit = async (formData: any) => {
     try {
       if (formState.mode === "add") {
@@ -296,6 +322,7 @@ export default function BorrowingPage() {
         onSubmit={handleFormSubmit}
         availableItems={availableItems}
         borrowers={borrowers}
+        currentUser={currentUser ?? undefined}
       />
     </DashboardLayout>
   );

@@ -57,6 +57,15 @@ interface Borrower {
   whatsapp: string;
 }
 
+interface CurrentUser {
+  id: string;
+  name: string;
+  email: string;
+  role: "admin" | "user";
+  student_id?: string;
+  whatsapp?: string;
+}
+
 interface BorrowingFormProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
@@ -66,6 +75,7 @@ interface BorrowingFormProps {
   title?: string;
   availableItems?: Array<{ id: string; name: string; available: number }>;
   borrowers?: Borrower[];
+  currentUser?: CurrentUser;
 }
 
 const statusOptions = [
@@ -84,6 +94,7 @@ export function BorrowingForm({
   title,
   availableItems = [],
   borrowers = [],
+  currentUser,
 }: BorrowingFormProps) {
   const [formData, setFormData] = useState<BorrowingFormData>({
     borrowerId: "",
@@ -106,6 +117,7 @@ export function BorrowingForm({
   const [borrowerSearch, setBorrowerSearch] = useState("");
 
   const isReadOnly = mode === "view";
+  const isUserRole = currentUser?.role === "user";
   const formTitle =
     title ||
     (mode === "add"
@@ -126,7 +138,8 @@ export function BorrowingForm({
         borrowingLetterFileIds: initialData.borrowingLetterFileIds || [],
       }));
     } else {
-      setFormData({
+      // Auto-fill current user data for user role
+      const defaultData: BorrowingFormData = {
         borrowerId: "",
         borrowerName: "",
         borrowerEmail: "",
@@ -140,10 +153,20 @@ export function BorrowingForm({
         purpose: "",
         status: "pending",
         borrowingLetterFileIds: [],
-      });
+      };
+
+      if (isUserRole && currentUser) {
+        defaultData.borrowerId = currentUser.id;
+        defaultData.borrowerName = currentUser.name;
+        defaultData.borrowerEmail = currentUser.email;
+        defaultData.borrowerPhone = currentUser.whatsapp || "";
+        defaultData.borrowerStudentId = currentUser.student_id || "";
+      }
+
+      setFormData(defaultData);
     }
     setErrors({});
-  }, [initialData, open]);
+  }, [initialData, open, currentUser, isUserRole]);
 
   const validateForm = (): boolean => {
     const newErrors: Record<string, string> = {};
@@ -276,7 +299,7 @@ export function BorrowingForm({
                 Informasi Peminjam
               </h3>
 
-              {mode === "add" ? (
+              {mode === "add" && !isUserRole ? (
                 <div className="space-y-4">
                   <div className="space-y-2">
                     <label className="block text-sm font-medium text-gray-700">
