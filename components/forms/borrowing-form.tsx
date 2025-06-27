@@ -18,7 +18,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { FileUpload } from "@/components/ui/file-upload";
+import { EnhancedFileUpload } from "@/components/ui/enhanced-file-upload";
 import { ConfirmationDialog } from "@/components/ui/confirmation-dialog";
 import { Calendar } from "@/components/ui/calendar";
 import {
@@ -44,7 +44,15 @@ interface BorrowingFormData {
   returnDate: Date;
   purpose: string;
   status: "pending" | "approved" | "rejected" | "returned";
-  borrowingLetter?: File[];
+  borrowingLetterFiles?: Array<{
+    id: string;
+    name: string;
+    originalName: string;
+    size: number;
+    type: string;
+    url: string;
+    fileName: string;
+  }>;
 }
 
 interface Borrower {
@@ -98,6 +106,7 @@ export function BorrowingForm({
     returnDate: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000), // 7 days from now
     purpose: "",
     status: "pending",
+    borrowingLetterFiles: [],
   });
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [showConfirmation, setShowConfirmation] = useState(false);
@@ -122,6 +131,7 @@ export function BorrowingForm({
         returnDate:
           initialData.returnDate ||
           new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
+        borrowingLetterFiles: initialData.borrowingLetterFiles || [],
       }));
     } else {
       setFormData({
@@ -137,6 +147,7 @@ export function BorrowingForm({
         returnDate: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
         purpose: "",
         status: "pending",
+        borrowingLetterFiles: [],
       });
     }
     setErrors({});
@@ -213,8 +224,8 @@ export function BorrowingForm({
     }));
   };
 
-  const handleFileSelect = (files: File[]) => {
-    setFormData((prev) => ({ ...prev, borrowingLetter: files }));
+  const handleFileUpload = (files: any[]) => {
+    setFormData((prev) => ({ ...prev, borrowingLetterFiles: files }));
   };
 
   const selectedItem = availableItems.find(
@@ -560,18 +571,21 @@ export function BorrowingForm({
                 </div>
               )}
 
-              {!isReadOnly && (
-                <div className="space-y-2">
-                  <label className="block text-sm font-medium text-gray-700">
-                    Surat Peminjaman
-                  </label>
-                  <FileUpload
-                    onFileSelect={handleFileSelect}
-                    accept=".pdf,.doc,.docx"
-                    maxSize={10}
-                  />
-                </div>
-              )}
+              <div className="space-y-2">
+                <label className="block text-sm font-medium text-gray-700">
+                  Surat Peminjaman
+                </label>
+                <EnhancedFileUpload
+                  onFileUpload={handleFileUpload}
+                  accept=".pdf,.doc,.docx,.txt"
+                  multiple={false}
+                  maxSize={10}
+                  folder="borrowing-letters"
+                  disabled={isReadOnly}
+                  initialFiles={formData.borrowingLetterFiles}
+                  showPreview={true}
+                />
+              </div>
             </div>
 
             <div className="flex justify-end space-x-3 pt-6 border-t">

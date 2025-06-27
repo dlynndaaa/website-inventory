@@ -1,58 +1,59 @@
-"use client"
+"use client";
 
-import { useState, useEffect } from "react"
-import { DashboardLayout } from "@/components/layout/dashboard-layout"
-import { DataTable } from "@/components/ui/data-table"
-import { StatusBadge } from "@/components/ui/status-badge"
-import { ItemForm } from "@/components/forms/item-form"
-import { apiClient } from "@/lib/api/client"
-import { useTableData } from "@/hooks/use-table-data"
+import { useState, useEffect } from "react";
+import { DashboardLayout } from "@/components/layout/dashboard-layout";
+import { DataTable } from "@/components/ui/data-table";
+import { StatusBadge } from "@/components/ui/status-badge";
+import { ItemForm } from "@/components/forms/item-form";
+import { apiClient } from "@/lib/api/client";
+import { useTableData } from "@/hooks/use-table-data";
 
 interface Item {
-  id: string
-  code: string
-  name: string
-  quantity: number
-  available: number
-  borrowed: number
-  condition: "good" | "damaged"
-  category: string
-  unit: string
+  id: string;
+  code: string;
+  name: string;
+  quantity: number;
+  available: number;
+  borrowed: number;
+  condition: "good" | "damaged";
+  category: string;
+  unit: string;
+  description: string;
 }
 
 export default function ItemsPage() {
-  const [data, setData] = useState<Item[]>([])
-  const [isLoading, setIsLoading] = useState(true)
-  const [userRole, setUserRole] = useState<"admin" | "user">("user")
+  const [data, setData] = useState<Item[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [userRole, setUserRole] = useState<"admin" | "user">("user");
   const [formState, setFormState] = useState<{
-    open: boolean
-    mode: "add" | "edit" | "view"
-    item?: Item
-  }>({ open: false, mode: "add" })
+    open: boolean;
+    mode: "add" | "edit" | "view";
+    item?: Item;
+  }>({ open: false, mode: "add" });
 
   const { paginatedData, handleSearch, pagination } = useTableData({
     data,
     pageSize: 8,
     searchFields: ["code", "name", "category"],
-  })
+  });
 
   useEffect(() => {
-    const role = localStorage.getItem("role")
-    setUserRole(role === "admin" ? "admin" : "user")
-    loadItems()
-  }, [])
+    const role = localStorage.getItem("role");
+    setUserRole(role === "admin" ? "admin" : "user");
+    loadItems();
+  }, []);
 
   const loadItems = async () => {
     try {
-      setIsLoading(true)
-      const response = await apiClient.getItems()
-      setData(response.items)
+      setIsLoading(true);
+      const response = await apiClient.getItems();
+      setData(response.items);
     } catch (error) {
-      console.error("Failed to load items:", error)
+      console.error("Failed to load items:", error);
     } finally {
-      setIsLoading(false)
+      setIsLoading(false);
     }
-  }
+  };
 
   const columns = [
     { key: "code" as keyof Item, title: "Kode Barang" },
@@ -63,8 +64,16 @@ export default function ItemsPage() {
       title: "Status",
       render: (value: number, item: Item) => (
         <div className="flex space-x-2">
-          {item.available > 0 && <StatusBadge status="available">{item.available} Tersedia</StatusBadge>}
-          {item.borrowed > 0 && <StatusBadge status="borrowed">{item.borrowed} Dipinjam</StatusBadge>}
+          {item.available > 0 && (
+            <StatusBadge status="available">
+              {item.available} Tersedia
+            </StatusBadge>
+          )}
+          {item.borrowed > 0 && (
+            <StatusBadge status="borrowed">
+              {item.borrowed} Dipinjam
+            </StatusBadge>
+          )}
         </div>
       ),
     },
@@ -77,40 +86,57 @@ export default function ItemsPage() {
         </span>
       ),
     },
-  ]
+  ];
 
-  const handleAdd = () => setFormState({ open: true, mode: "add" })
-  const handleEdit = (item: Item) => setFormState({ open: true, mode: "edit", item })
-  const handleView = (item: Item) => setFormState({ open: true, mode: "view", item })
+  const handleAdd = () => setFormState({ open: true, mode: "add" });
+  const handleEdit = (item: Item) =>
+    setFormState({ open: true, mode: "edit", item });
+  const handleView = (item: Item) => {
+    console.log("Viewing item:", item);
+    setFormState({ open: true, mode: "view", item });
+  };
 
   const handleDelete = async (item: Item) => {
     try {
-      await apiClient.deleteItem(item.id)
-      setData((prev) => prev.filter((i) => i.id !== item.id))
+      await apiClient.deleteItem(item.id);
+      setData((prev) => prev.filter((i) => i.id !== item.id));
     } catch (error) {
-      console.error("Failed to delete item:", error)
+      console.error("Failed to delete item:", error);
     }
-  }
+  };
 
   const handleFormSubmit = async (formData: any) => {
     try {
       if (formState.mode === "add") {
+        //
         const response = await apiClient.createItem({
           ...formData,
+          image_url:
+            formData.imageFiles.length > 0
+              ? formData.imageFiles.map((file: any) => file.name).join(",")
+              : "",
           condition: formData.condition === "Baik" ? "good" : "damaged",
-        })
-        setData((prev) => [...prev, response.item])
+        });
+        setData((prev) => [...prev, response.item]);
       } else if (formState.mode === "edit" && formState.item) {
         const response = await apiClient.updateItem(formState.item.id, {
           ...formData,
+          image_url:
+            formData.imageFiles.length > 0
+              ? formData.imageFiles.map((file: any) => file.name).join(",")
+              : "",
           condition: formData.condition === "Baik" ? "good" : "damaged",
-        })
-        setData((prev) => prev.map((item) => (item.id === formState.item?.id ? response.item : item)))
+        });
+        setData((prev) =>
+          prev.map((item) =>
+            item.id === formState.item?.id ? response.item : item
+          )
+        );
       }
     } catch (error) {
-      console.error("Failed to save item:", error)
+      console.error("Failed to save item:", error);
     }
-  }
+  };
 
   return (
     <DashboardLayout>
@@ -119,16 +145,16 @@ export default function ItemsPage() {
         data={paginatedData}
         columns={columns}
         searchPlaceholder="Search..."
-        addButtonText={userRole === "admin" ? "Tambah Barang" : undefined}
+        addButtonText={"Tambah Barang"}
         userRole={userRole}
-        onAdd={userRole === "admin" ? handleAdd : undefined}
-        onEdit={userRole === "admin" ? handleEdit : undefined}
-        onDelete={userRole === "admin" ? handleDelete : undefined}
+        onAdd={handleAdd}
+        onEdit={handleEdit}
+        onDelete={handleDelete}
         onView={handleView}
         onSearch={handleSearch}
         pagination={pagination}
         isLoading={isLoading}
-        hideActions={userRole === "user"} // kalau komponen DataTable mendukung ini
+        // hideActions={userRole === "user"} // kalau komponen DataTable mendukung ini
       />
 
       <ItemForm
@@ -143,12 +169,14 @@ export default function ItemsPage() {
                 quantity: formState.item.quantity,
                 unit: formState.item.unit,
                 category: formState.item.category,
-                condition: formState.item.condition === "good" ? "Baik" : "Rusak",
+                description: formState.item.description,
+                condition:
+                  formState.item.condition === "good" ? "Baik" : "Rusak",
               }
             : undefined
         }
         onSubmit={handleFormSubmit}
       />
     </DashboardLayout>
-  )
+  );
 }

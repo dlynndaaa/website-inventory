@@ -2,6 +2,12 @@
 
 # dependencies
 /node_modules
+/.pnp
+.pnp.js
+.yarn/install-state.gz
+
+# testing
+/coverage
 
 # next.js
 /.next/
@@ -10,11 +16,18 @@
 # production
 /build
 
+# misc
+.DS_Store
+*.pem
+
 # debug
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
-.pnpm-debug.log*
+
+# local env files
+.env*.local
+.env
 
 # vercel
 .vercel
@@ -22,3 +35,19 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# uploads directory - keep structure but ignore files
+/uploads/*
+!/uploads/.gitkeep
+!/uploads/items/
+!/uploads/borrowing-letters/
+!/uploads/avatars/
+!/uploads/general/
+/uploads/items/*
+!/uploads/items/.gitkeep
+/uploads/borrowing-letters/*
+!/uploads/borrowing-letters/.gitkeep
+/uploads/avatars/*
+!/uploads/avatars/.gitkeep
+/uploads/general/*
+!/uploads/general/.gitkeep

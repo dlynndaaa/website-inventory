@@ -1,41 +1,74 @@
-"use client"
+"use client";
 
-import type React from "react"
+import type React from "react";
 
-import { useState, useEffect } from "react"
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
-import { Button } from "@/components/ui/button"
-import { FormField } from "@/components/ui/form-field"
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { FileUpload } from "@/components/ui/file-upload"
-import { ConfirmationDialog } from "@/components/ui/confirmation-dialog"
-import { X } from "lucide-react"
+import { useState, useEffect } from "react";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { Button } from "@/components/ui/button";
+import { FormField } from "@/components/ui/form-field";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { EnhancedFileUpload } from "@/components/ui/enhanced-file-upload";
+import { ConfirmationDialog } from "@/components/ui/confirmation-dialog";
+import { X } from "lucide-react";
 
 interface ItemFormData {
-  code: string
-  name: string
-  quantity: number
-  unit: string
-  category: string
-  condition: string
-  image?: File[]
+  code: string;
+  name: string;
+  quantity: number;
+  unit: string;
+  category: string;
+  condition: string;
+  description?: string;
+  imageFiles?: Array<{
+    id: string;
+    name: string;
+    originalName: string;
+    size: number;
+    type: string;
+    url: string;
+    fileName: string;
+  }>;
 }
 
 interface ItemFormProps {
-  open: boolean
-  onOpenChange: (open: boolean) => void
-  mode: "add" | "edit" | "view"
-  initialData?: Partial<ItemFormData>
-  onSubmit?: (data: ItemFormData) => void
-  title?: string
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  mode: "add" | "edit" | "view";
+  initialData?: Partial<ItemFormData>;
+  onSubmit?: (data: ItemFormData) => void;
+  title?: string;
 }
 
-const quantityOptions = Array.from({ length: 100 }, (_, i) => i + 1)
-const unitOptions = ["Unit", "Pcs", "Set", "Box", "Kg", "Liter"]
-const categoryOptions = ["Komputer", "Elektronik", "Furniture", "Alat Tulis", "Lainnya"]
-const conditionOptions = ["Baik", "Rusak", "Perlu Perbaikan"]
+const quantityOptions = Array.from({ length: 100 }, (_, i) => i + 1);
+const unitOptions = ["Unit", "Pcs", "Set", "Box", "Kg", "Liter"];
+const categoryOptions = [
+  "Komputer",
+  "Elektronik",
+  "Furniture",
+  "Alat Tulis",
+  "Lainnya",
+];
+const conditionOptions = ["Baik", "Rusak", "Perlu Perbaikan"];
 
-export function ItemForm({ open, onOpenChange, mode, initialData, onSubmit, title }: ItemFormProps) {
+export function ItemForm({
+  open,
+  onOpenChange,
+  mode,
+  initialData,
+  onSubmit,
+  title,
+}: ItemFormProps) {
   const [formData, setFormData] = useState<ItemFormData>({
     code: "",
     name: "",
@@ -43,17 +76,25 @@ export function ItemForm({ open, onOpenChange, mode, initialData, onSubmit, titl
     unit: "Unit",
     category: "",
     condition: "Baik",
-  })
-  const [errors, setErrors] = useState<Record<string, string>>({})
-  const [showConfirmation, setShowConfirmation] = useState(false)
-  const [isLoading, setIsLoading] = useState(false)
+    description: "",
+    imageFiles: [],
+  });
+  const [errors, setErrors] = useState<Record<string, string>>({});
+  const [showConfirmation, setShowConfirmation] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
 
-  const isReadOnly = mode === "view"
-  const formTitle = title || (mode === "add" ? "Tambah Barang" : mode === "edit" ? "Edit Barang" : "Detail Barang")
+  const isReadOnly = mode === "view";
+  const formTitle =
+    title ||
+    (mode === "add"
+      ? "Tambah Barang"
+      : mode === "edit"
+      ? "Edit Barang"
+      : "Detail Barang");
 
   useEffect(() => {
     if (initialData) {
-      setFormData((prev) => ({ ...prev, ...initialData }))
+      setFormData((prev) => ({ ...prev, ...initialData }));
     } else {
       setFormData({
         code: "",
@@ -62,55 +103,58 @@ export function ItemForm({ open, onOpenChange, mode, initialData, onSubmit, titl
         unit: "Unit",
         category: "",
         condition: "Baik",
-      })
+        description: "",
+        imageFiles: [],
+      });
     }
-    setErrors({})
-  }, [initialData, open])
+    setErrors({});
+  }, [initialData, open]);
 
   const validateForm = (): boolean => {
-    const newErrors: Record<string, string> = {}
+    const newErrors: Record<string, string> = {};
 
-    if (!formData.code.trim()) newErrors.code = "Kode barang harus diisi"
-    if (!formData.name.trim()) newErrors.name = "Nama barang harus diisi"
-    if (!formData.category) newErrors.category = "Kategori harus dipilih"
+    if (!formData.code.trim()) newErrors.code = "Kode barang harus diisi";
+    if (!formData.name.trim()) newErrors.name = "Nama barang harus diisi";
+    if (!formData.category) newErrors.category = "Kategori harus dipilih";
 
-    setErrors(newErrors)
-    return Object.keys(newErrors).length === 0
-  }
+    setErrors(newErrors);
+    return Object.keys(newErrors).length === 0;
+  };
 
   const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault()
-    if (isReadOnly) return
+    e.preventDefault();
+    if (isReadOnly) return;
 
     if (validateForm()) {
-      setShowConfirmation(true)
+      setShowConfirmation(true);
     }
-  }
+  };
 
   const handleConfirmSave = async () => {
-    setIsLoading(true)
+    console.log("Saving item:", formData);
+    setIsLoading(true);
     try {
-      await new Promise((resolve) => setTimeout(resolve, 1000)) // Simulate API call
-      onSubmit?.(formData)
-      setShowConfirmation(false)
-      onOpenChange(false)
+      await new Promise((resolve) => setTimeout(resolve, 1000)); // Simulate API call
+      onSubmit?.(formData);
+      setShowConfirmation(false);
+      onOpenChange(false);
     } catch (error) {
-      console.error("Error saving item:", error)
+      console.error("Error saving item:", error);
     } finally {
-      setIsLoading(false)
+      setIsLoading(false);
     }
-  }
+  };
 
   const handleInputChange = (field: keyof ItemFormData, value: any) => {
-    setFormData((prev) => ({ ...prev, [field]: value }))
+    setFormData((prev) => ({ ...prev, [field]: value }));
     if (errors[field]) {
-      setErrors((prev) => ({ ...prev, [field]: "" }))
+      setErrors((prev) => ({ ...prev, [field]: "" }));
     }
-  }
+  };
 
-  const handleFileSelect = (files: File[]) => {
-    setFormData((prev) => ({ ...prev, image: files }))
-  }
+  const handleFileUpload = (files: any[]) => {
+    setFormData((prev) => ({ ...prev, imageFiles: files }));
+  };
 
   return (
     <>
@@ -118,8 +162,14 @@ export function ItemForm({ open, onOpenChange, mode, initialData, onSubmit, titl
         <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <div className="flex items-center justify-between">
-              <DialogTitle className="text-xl font-semibold">{formTitle}</DialogTitle>
-              <Button variant="ghost" size="sm" onClick={() => onOpenChange(false)}>
+              <DialogTitle className="text-xl font-semibold">
+                {formTitle}
+              </DialogTitle>
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => onOpenChange(false)}
+              >
                 <X className="h-4 w-4" />
               </Button>
             </div>
@@ -155,7 +205,9 @@ export function ItemForm({ open, onOpenChange, mode, initialData, onSubmit, titl
                 </label>
                 <Select
                   value={formData.quantity.toString()}
-                  onValueChange={(value) => handleInputChange("quantity", Number.parseInt(value))}
+                  onValueChange={(value) =>
+                    handleInputChange("quantity", Number.parseInt(value))
+                  }
                   disabled={isReadOnly}
                 >
                   <SelectTrigger>
@@ -201,7 +253,9 @@ export function ItemForm({ open, onOpenChange, mode, initialData, onSubmit, titl
                 </label>
                 <Select
                   value={formData.category}
-                  onValueChange={(value) => handleInputChange("category", value)}
+                  onValueChange={(value) =>
+                    handleInputChange("category", value)
+                  }
                   disabled={isReadOnly}
                 >
                   <SelectTrigger>
@@ -215,7 +269,9 @@ export function ItemForm({ open, onOpenChange, mode, initialData, onSubmit, titl
                     ))}
                   </SelectContent>
                 </Select>
-                {errors.category && <p className="text-sm text-red-600">{errors.category}</p>}
+                {errors.category && (
+                  <p className="text-sm text-red-600">{errors.category}</p>
+                )}
               </div>
 
               <div className="space-y-2">
@@ -224,7 +280,9 @@ export function ItemForm({ open, onOpenChange, mode, initialData, onSubmit, titl
                 </label>
                 <Select
                   value={formData.condition}
-                  onValueChange={(value) => handleInputChange("condition", value)}
+                  onValueChange={(value) =>
+                    handleInputChange("condition", value)
+                  }
                   disabled={isReadOnly}
                 >
                   <SelectTrigger>
@@ -241,19 +299,52 @@ export function ItemForm({ open, onOpenChange, mode, initialData, onSubmit, titl
               </div>
             </div>
 
-            {!isReadOnly && (
-              <div className="space-y-2">
-                <label className="block text-sm font-medium text-gray-700">Upload Gambar</label>
-                <FileUpload onFileSelect={handleFileSelect} accept="image/*" maxSize={25} />
-              </div>
-            )}
+            <div className="space-y-2">
+              <label className="block text-sm font-medium text-gray-700">
+                Deskripsi
+              </label>
+              <textarea
+                className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                rows={3}
+                placeholder="Masukkan deskripsi barang (opsional)"
+                value={formData.description || ""}
+                onChange={(e) =>
+                  handleInputChange("description", e.target.value)
+                }
+                disabled={isReadOnly}
+              />
+            </div>
+
+            <div className="space-y-2">
+              <label className="block text-sm font-medium text-gray-700">
+                Gambar Barang
+              </label>
+              <EnhancedFileUpload
+                onFileUpload={handleFileUpload}
+                accept="image/*"
+                multiple={true}
+                maxSize={25}
+                folder="items"
+                disabled={isReadOnly}
+                initialFiles={formData.imageFiles}
+                showPreview={true}
+              />
+            </div>
 
             <div className="flex justify-end space-x-3 pt-6 border-t">
-              <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => onOpenChange(false)}
+              >
                 {isReadOnly ? "Tutup" : "Batal"}
               </Button>
               {!isReadOnly && (
-                <Button type="submit" className="bg-blue-600 hover:bg-blue-700" disabled={isLoading}>
+                <Button
+                  type="submit"
+                  className="bg-blue-600 hover:bg-blue-700"
+                  disabled={isLoading}
+                >
                   {isLoading ? "Menyimpan..." : "Simpan"}
                 </Button>
               )}
@@ -266,11 +357,13 @@ export function ItemForm({ open, onOpenChange, mode, initialData, onSubmit, titl
         open={showConfirmation}
         onOpenChange={setShowConfirmation}
         title="Konfirmasi Simpan"
-        description={`Apakah Anda yakin ingin ${mode === "add" ? "menambah" : "mengubah"} data barang ini?`}
+        description={`Apakah Anda yakin ingin ${
+          mode === "add" ? "menambah" : "mengubah"
+        } data barang ini?`}
         confirmText="Ya, Simpan"
         cancelText="Batal"
         onConfirm={handleConfirmSave}
       />
     </>
-  )
+  );
 }
