@@ -2,7 +2,7 @@
 
 import type React from "react";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import {
   Dialog,
   DialogContent,
@@ -44,15 +44,7 @@ interface BorrowingFormData {
   returnDate: Date;
   purpose: string;
   status: "pending" | "approved" | "rejected" | "returned";
-  borrowingLetterFiles?: Array<{
-    id: string;
-    name: string;
-    originalName: string;
-    size: number;
-    type: string;
-    url: string;
-    fileName: string;
-  }>;
+  borrowingLetterFileIds: string[]; // Changed from borrowingLetterFiles to fileIds
 }
 
 interface Borrower {
@@ -106,7 +98,7 @@ export function BorrowingForm({
     returnDate: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000), // 7 days from now
     purpose: "",
     status: "pending",
-    borrowingLetterFiles: [],
+    borrowingLetterFileIds: [],
   });
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [showConfirmation, setShowConfirmation] = useState(false);
@@ -131,7 +123,7 @@ export function BorrowingForm({
         returnDate:
           initialData.returnDate ||
           new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
-        borrowingLetterFiles: initialData.borrowingLetterFiles || [],
+        borrowingLetterFileIds: initialData.borrowingLetterFileIds || [],
       }));
     } else {
       setFormData({
@@ -147,7 +139,7 @@ export function BorrowingForm({
         returnDate: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
         purpose: "",
         status: "pending",
-        borrowingLetterFiles: [],
+        borrowingLetterFileIds: [],
       });
     }
     setErrors({});
@@ -224,9 +216,26 @@ export function BorrowingForm({
     }));
   };
 
-  const handleFileUpload = (files: any[]) => {
-    setFormData((prev) => ({ ...prev, borrowingLetterFiles: files }));
-  };
+  // Handle file upload - same pattern as items
+  const handleFileUpload = useCallback((uploadedFiles: any[]) => {
+    console.log("📄 Files uploaded:", uploadedFiles);
+    const fileIds = uploadedFiles.map((file) => file.id);
+    setFormData((prev) => ({
+      ...prev,
+      borrowingLetterFileIds: fileIds,
+    }));
+  }, []);
+
+  // Handle file removal - same pattern as items
+  const handleFileRemove = useCallback((fileId: string) => {
+    console.log("🗑️ Removing file:", fileId);
+    setFormData((prev) => ({
+      ...prev,
+      borrowingLetterFileIds: prev.borrowingLetterFileIds.filter(
+        (id) => id !== fileId
+      ),
+    }));
+  }, []);
 
   const selectedItem = availableItems.find(
     (item) => item.id === formData.itemId
@@ -460,7 +469,7 @@ export function BorrowingForm({
                     <PopoverTrigger asChild>
                       <Button
                         variant="outline"
-                        className="w-full justify-start text-left font-normal"
+                        className="w-full justify-start text-left font-normal bg-transparent"
                         disabled={isReadOnly}
                       >
                         <CalendarIcon className="mr-2 h-4 w-4" />
@@ -492,7 +501,7 @@ export function BorrowingForm({
                     <PopoverTrigger asChild>
                       <Button
                         variant="outline"
-                        className="w-full justify-start text-left font-normal"
+                        className="w-full justify-start text-left font-normal bg-transparent"
                         disabled={isReadOnly}
                       >
                         <CalendarIcon className="mr-2 h-4 w-4" />
@@ -571,20 +580,30 @@ export function BorrowingForm({
                 </div>
               )}
 
+              {/* File Upload Section - Same as Items */}
               <div className="space-y-2">
                 <label className="block text-sm font-medium text-gray-700">
                   Surat Peminjaman
                 </label>
                 <EnhancedFileUpload
                   onFileUpload={handleFileUpload}
+                  onFileRemove={handleFileRemove}
                   accept=".pdf,.doc,.docx,.txt"
-                  multiple={false}
+                  multiple={true}
                   maxSize={10}
                   folder="borrowing-letters"
                   disabled={isReadOnly}
-                  initialFiles={formData.borrowingLetterFiles}
+                  initialFileIds={formData.borrowingLetterFileIds}
                   showPreview={true}
+                  referenceTable="borrowings"
+                  referenceId={
+                    mode === "edit" ? initialData?.borrowerId : undefined
+                  }
                 />
+                <p className="text-xs text-gray-500">
+                  Upload surat peminjaman dalam format PDF, DOC, DOCX, atau TXT.
+                  Maksimal 10MB per file.
+                </p>
               </div>
             </div>
 

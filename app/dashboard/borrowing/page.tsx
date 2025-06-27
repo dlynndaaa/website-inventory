@@ -7,20 +7,21 @@ import { BorrowingStatusBadge } from "@/components/ui/borrowing-status-badge";
 import { BorrowingForm } from "@/components/forms/borrowing-form";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
-import { FileText } from "lucide-react";
+import { FileText, Download } from "lucide-react";
 import { format } from "date-fns";
 import { id } from "date-fns/locale";
 import { apiClient } from "@/lib/api/client";
 import { useTableData } from "@/hooks/use-table-data";
+import { FileUploadService } from "@/lib/utils/file-upload";
 
 interface Borrowing {
   id: string;
-  borrower_id: string; // Add this property
+  borrower_id: string;
   borrower_name: string;
   borrower_email: string;
   borrower_phone?: string;
   borrower_whatsapp?: string;
-  borrower_student_id: string; // Add this property
+  borrower_student_id: string;
   item_id: string;
   item_name: string;
   quantity: number;
@@ -28,7 +29,7 @@ interface Borrowing {
   return_date: string;
   purpose: string;
   status: "pending" | "approved" | "rejected" | "returned";
-  borrowing_letter_url?: string;
+  borrowing_letter_file_ids?: string;
 }
 
 export default function BorrowingPage() {
@@ -97,6 +98,35 @@ export default function BorrowingPage() {
     }
   };
 
+  // Handle downloading borrowing letter files
+  const handleDownloadBorrowingLetter = async (fileIds: string) => {
+    if (!fileIds) return;
+
+    const ids = fileIds.split(",").filter((id) => id.trim());
+    if (ids.length === 0) return;
+
+    try {
+      // Download each file
+      for (const fileId of ids) {
+        const downloadUrl = FileUploadService.getDownloadUrl(fileId);
+        const link = document.createElement("a");
+        link.href = downloadUrl;
+        link.download = ""; // Let browser determine filename
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+
+        // Small delay between downloads to prevent browser blocking
+        if (ids.length > 1) {
+          await new Promise((resolve) => setTimeout(resolve, 500));
+        }
+      }
+    } catch (error) {
+      console.error("Failed to download files:", error);
+      alert("Failed to download borrowing letter files");
+    }
+  };
+
   const columns = [
     {
       key: "borrower_name" as keyof Borrowing,
@@ -133,13 +163,18 @@ export default function BorrowingPage() {
         format(new Date(value), "dd-MM-yyyy", { locale: id }),
     },
     {
-      key: "borrowing_letter_url" as keyof Borrowing,
+      key: "borrowing_letter_file_ids" as keyof Borrowing,
       title: "Surat Peminjaman",
-      render: (value: string) =>
+      render: (value: string, borrowing: Borrowing) =>
         value ? (
-          <Button variant="link" className="text-blue-600 p-0 h-auto">
+          <Button
+            variant="link"
+            className="text-blue-600 p-0 h-auto"
+            onClick={() => handleDownloadBorrowingLetter(value)}
+          >
             <FileText className="w-4 h-4 mr-1" />
-            Download
+            <Download className="w-3 h-3 ml-1" />
+            Download ({value.split(",").filter((id) => id.trim()).length})
           </Button>
         ) : (
           <span className="text-gray-400">-</span>
@@ -148,7 +183,7 @@ export default function BorrowingPage() {
     {
       key: "status" as keyof Borrowing,
       title: "Status",
-      render: (value: string) => {
+      render: (value: string, borrowing: Borrowing) => {
         const statusMap = {
           pending: "Menunggu",
           approved: "Dipinjam",
@@ -188,20 +223,21 @@ export default function BorrowingPage() {
   const handleFormSubmit = async (formData: any) => {
     try {
       if (formState.mode === "add") {
-        const response = await apiClient.createBorrowing({
+        await apiClient.createBorrowing({
           borrower_id: formData.borrowerId,
           item_id: formData.itemId,
           quantity: formData.quantity,
           borrow_date: formData.borrowDate,
           return_date: formData.returnDate,
           purpose: formData.purpose,
-          borrowing_letter_url: formData.borrowingLetter?.[0]?.name,
+          borrowing_letter_file_ids: formData.borrowingLetterFileIds,
         });
         await loadBorrowings(); // Reload to get updated data
       } else if (formState.mode === "edit" && formState.item) {
         await apiClient.updateBorrowing(formState.item.id, {
           status: formData.status,
           notes: formData.notes,
+          borrowing_letter_file_ids: formData.borrowingLetterFileIds,
         });
         await loadBorrowings(); // Reload to get updated data
       }
@@ -216,7 +252,7 @@ export default function BorrowingPage() {
         title="Daftar Peminjaman"
         data={paginatedData}
         columns={columns}
-        searchPlaceholder="Search..."
+        searchPlaceholder="Cari peminjaman..."
         addButtonText="Tambah Peminjaman"
         onAdd={handleAdd}
         onEdit={handleEdit}
@@ -249,6 +285,11 @@ export default function BorrowingPage() {
                 returnDate: new Date(formState.item.return_date),
                 purpose: formState.item.purpose,
                 status: formState.item.status,
+                borrowingLetterFileIds: formState.item.borrowing_letter_file_ids
+                  ? formState.item.borrowing_letter_file_ids
+                      .split(",")
+                      .filter((id) => id.trim())
+                  : [],
               }
             : undefined
         }
