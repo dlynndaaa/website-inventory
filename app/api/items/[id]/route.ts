@@ -1,143 +1,203 @@
-import { type NextRequest, NextResponse } from "next/server"
-import pool from "@/lib/db/connection"
-import { withAuth } from "@/lib/auth/middleware"
+import { type NextRequest, NextResponse } from "next/server";
+import pool from "@/lib/db/connection";
+import { withAuth } from "@/lib/auth/middleware";
 
 // GET /api/items/[id] - Get single item
-async function getItemHandler(request: NextRequest & { user: any }, { params }: { params: { id: string } }) {
+async function getItemHandler(
+  request: NextRequest & { user: any },
+  { params }: { params: { id: string } }
+) {
   try {
-    const itemQuery = `
-      SELECT id, code, name, quantity, available, borrowed, unit, category,
-             condition, description, image_url, created_date, updated_date
+    const { id } = params;
+
+    const query = `
+      SELECT id, code, name, quantity, available, borrowed, unit, category, 
+             condition, description, file_ids, created_date, updated_date
       FROM items 
       WHERE id = $1 AND is_active = true AND is_deleted = false
-    `
+    `;
 
-    const result = await pool.query(itemQuery, [params.id])
+    const result = await pool.query(query, [id]);
 
     if (result.rows.length === 0) {
-      return NextResponse.json({ error: "Item not found" }, { status: 404 })
+      return NextResponse.json({ error: "Item not found" }, { status: 404 });
     }
 
-    return NextResponse.json({ item: result.rows[0] })
+    return NextResponse.json({ item: result.rows[0] });
   } catch (error) {
-    console.error("Get item error:", error)
-    return NextResponse.json({ error: "Internal server error" }, { status: 500 })
+    console.error("Get item error:", error);
+    return NextResponse.json(
+      { error: "Internal server error" },
+      { status: 500 }
+    );
   }
 }
 
 // PUT /api/items/[id] - Update item
-async function updateItemHandler(request: NextRequest & { user: any }, { params }: { params: { id: string } }) {
+async function updateItemHandler(
+  request: NextRequest & { user: any },
+  { params }: { params: { id: string } }
+) {
   try {
-    const body = await request.json()
-    const { code, name, quantity, unit, category, condition, description, image_url } = body
+    const { id } = params;
+    const body = await request.json();
+    const {
+      code,
+      name,
+      quantity,
+      unit,
+      category,
+      condition,
+      description,
+      fileIds,
+    } = body;
 
-    // Check if item exists
+    if (!code || !name || !quantity || !unit || !category || !condition) {
+      return NextResponse.json(
+        { error: "Missing required fields" },
+        { status: 400 }
+      );
+    }
+
+    // Check if code already exists for other items
     const existingQuery = `
-      SELECT id, available, borrowed FROM items 
-      WHERE id = $1 AND is_active = true AND is_deleted = false
-    `
-    const existingResult = await pool.query(existingQuery, [params.id])
+      SELECT id FROM items 
+      WHERE code = $1 AND id != $2 AND is_active = true AND is_deleted = false
+    `;
+    const existingResult = await pool.query(existingQuery, [code, id]);
 
-    if (existingResult.rows.length === 0) {
-      return NextResponse.json({ error: "Item not found" }, { status: 404 })
+    if (existingResult.rows.length > 0) {
+      return NextResponse.json(
+        { error: "Item code already exists" },
+        { status: 409 }
+      );
     }
 
-    const currentItem = existingResult.rows[0]
-
-    // Check if code is being changed and if new code already exists
-    if (code) {
-      const codeCheckQuery = `
-        SELECT id FROM items 
-        WHERE code = $1 AND id != $2 AND is_active = true AND is_deleted = false
-      `
-      const codeCheckResult = await pool.query(codeCheckQuery, [code, params.id])
-
-      if (codeCheckResult.rows.length > 0) {
-        return NextResponse.json({ error: "Item code already exists" }, { status: 409 })
-      }
-    }
-
-    // Calculate new available quantity if total quantity changed
-    const newAvailable = quantity ? quantity - currentItem.borrowed : currentItem.available
+    // Convert fileIds array to comma-separated string
+    const fileIdsString = Array.isArray(fileIds)
+      ? fileIds.join(",")
+      : fileIds || "";
 
     const updateQuery = `
-      UPDATE items SET
-        code = COALESCE($1, code),
-        name = COALESCE($2, name),
-        quantity = COALESCE($3, quantity),
-        available = COALESCE($4, available),
-        unit = COALESCE($5, unit),
-        category = COALESCE($6, category),
-        condition = COALESCE($7, condition),
-        description = COALESCE($8, description),
-        image_url = COALESCE($9, image_url),
-        updated_by = $10
-      WHERE id = $11
+      UPDATE items SET 
+        code = $1, name = $2, quantity = $3, unit = $4, category = $5, 
+        condition = $6, description = $7, file_ids = $8, updated_by = $9,
+        updated_date = CURRENT_TIMESTAMP
+      WHERE id = $10 AND is_active = true AND is_deleted = false
       RETURNING *
-    `
+    `;
 
     const result = await pool.query(updateQuery, [
       code,
       name,
       quantity,
-      newAvailable,
       unit,
       category,
       condition,
       description,
-      image_url,
+      fileIdsString,
       request.user.userId,
-      params.id,
-    ])
+      id,
+    ]);
 
-    return NextResponse.json({ item: result.rows[0] })
+    if (result.rows.length === 0) {
+      return NextResponse.json({ error: "Item not found" }, { status: 404 });
+    }
+
+    // Update file references if fileIds provided
+    if (fileIds && Array.isArray(fileIds) && fileIds.length > 0) {
+      // First, clear existing references for this item
+      await pool.query(
+        `UPDATE files SET reference_table = NULL, reference_id = NULL 
+         WHERE reference_table = 'items' AND reference_id = $1`,
+        [id]
+      );
+
+      // Then set new references
+      const updateFileQuery = `
+        UPDATE files SET 
+          reference_table = 'items',
+          reference_id = $1,
+          updated_by = $2,
+          updated_date = CURRENT_TIMESTAMP
+        WHERE id = ANY($3) AND is_active = true AND is_deleted = false
+      `;
+      await pool.query(updateFileQuery, [id, request.user.userId, fileIds]);
+    } else {
+      // Clear all file references if no fileIds provided
+      await pool.query(
+        `UPDATE files SET reference_table = NULL, reference_id = NULL 
+         WHERE reference_table = 'items' AND reference_id = $1`,
+        [id]
+      );
+    }
+
+    return NextResponse.json({ item: result.rows[0] });
   } catch (error) {
-    console.error("Update item error:", error)
-    return NextResponse.json({ error: "Internal server error" }, { status: 500 })
+    console.error("Update item error:", error);
+    return NextResponse.json(
+      { error: "Internal server error" },
+      { status: 500 }
+    );
   }
 }
 
-// DELETE /api/items/[id] - Delete item (soft delete)
-async function deleteItemHandler(request: NextRequest & { user: any }, { params }: { params: { id: string } }) {
+// DELETE /api/items/[id] - Delete item
+async function deleteItemHandler(
+  request: NextRequest & { user: any },
+  { params }: { params: { id: string } }
+) {
   try {
-    // Check if item exists and has no active borrowings
-    const checkQuery = `
-      SELECT i.id, COUNT(b.id) as active_borrowings
-      FROM items i
-      LEFT JOIN borrowings b ON i.id = b.item_id 
-        AND b.status IN ('approved', 'pending') 
-        AND b.is_active = true 
-        AND b.is_deleted = false
-      WHERE i.id = $1 AND i.is_active = true AND i.is_deleted = false
-      GROUP BY i.id
-    `
+    const { id } = params;
 
-    const checkResult = await pool.query(checkQuery, [params.id])
+    // Check if item is currently borrowed
+    const borrowedQuery = `
+      SELECT COUNT(*) FROM borrowings 
+      WHERE item_id = $1 AND status IN ('pending', 'approved') AND is_active = true
+    `;
+    const borrowedResult = await pool.query(borrowedQuery, [id]);
+    const borrowedCount = Number.parseInt(borrowedResult.rows[0].count);
 
-    if (checkResult.rows.length === 0) {
-      return NextResponse.json({ error: "Item not found" }, { status: 404 })
+    if (borrowedCount > 0) {
+      return NextResponse.json(
+        { error: "Cannot delete item that is currently borrowed" },
+        { status: 400 }
+      );
     }
 
-    if (Number.parseInt(checkResult.rows[0].active_borrowings) > 0) {
-      return NextResponse.json({ error: "Cannot delete item with active borrowings" }, { status: 409 })
-    }
-
+    // Soft delete the item
     const deleteQuery = `
-      UPDATE items SET
-        is_deleted = true,
-        updated_by = $1
-      WHERE id = $2
-    `
+      UPDATE items SET 
+        is_deleted = true, 
+        updated_by = $2,
+        updated_date = CURRENT_TIMESTAMP
+      WHERE id = $1 AND is_active = true AND is_deleted = false
+      RETURNING *
+    `;
 
-    await pool.query(deleteQuery, [request.user.userId, params.id])
+    const result = await pool.query(deleteQuery, [id, request.user.userId]);
 
-    return NextResponse.json({ message: "Item deleted successfully" })
+    if (result.rows.length === 0) {
+      return NextResponse.json({ error: "Item not found" }, { status: 404 });
+    }
+
+    // Clear file references
+    await pool.query(
+      `UPDATE files SET reference_table = NULL, reference_id = NULL 
+       WHERE reference_table = 'items' AND reference_id = $1`,
+      [id]
+    );
+
+    return NextResponse.json({ success: true });
   } catch (error) {
-    console.error("Delete item error:", error)
-    return NextResponse.json({ error: "Internal server error" }, { status: 500 })
+    console.error("Delete item error:", error);
+    return NextResponse.json(
+      { error: "Internal server error" },
+      { status: 500 }
+    );
   }
 }
 
-export const GET = withAuth(getItemHandler)
-export const PUT = withAuth(updateItemHandler)
-export const DELETE = withAuth(deleteItemHandler)
+export const GET = withAuth(getItemHandler);
+export const PUT = withAuth(updateItemHandler);
+export const DELETE = withAuth(deleteItemHandler);

@@ -2,7 +2,7 @@
 
 import type React from "react";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import {
   Dialog,
   DialogContent,
@@ -30,15 +30,7 @@ interface ItemFormData {
   category: string;
   condition: string;
   description?: string;
-  imageFiles?: Array<{
-    id: string;
-    name: string;
-    originalName: string;
-    size: number;
-    type: string;
-    url: string;
-    fileName: string;
-  }>;
+  fileIds?: string[]; // Changed from imageFiles to fileIds
 }
 
 interface ItemFormProps {
@@ -77,7 +69,7 @@ export function ItemForm({
     category: "",
     condition: "Baik",
     description: "",
-    imageFiles: [],
+    fileIds: [],
   });
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [showConfirmation, setShowConfirmation] = useState(false);
@@ -94,7 +86,11 @@ export function ItemForm({
 
   useEffect(() => {
     if (initialData) {
-      setFormData((prev) => ({ ...prev, ...initialData }));
+      setFormData((prev) => ({
+        ...prev,
+        ...initialData,
+        fileIds: initialData.fileIds || [],
+      }));
     } else {
       setFormData({
         code: "",
@@ -104,7 +100,7 @@ export function ItemForm({
         category: "",
         condition: "Baik",
         description: "",
-        imageFiles: [],
+        fileIds: [],
       });
     }
     setErrors({});
@@ -152,9 +148,21 @@ export function ItemForm({
     }
   };
 
-  const handleFileUpload = (files: any[]) => {
-    setFormData((prev) => ({ ...prev, imageFiles: files }));
-  };
+  // Use useCallback to prevent unnecessary re-renders
+  const handleFileUpload = useCallback((files: any[]) => {
+    console.log("📁 Files uploaded in form:", files.length);
+    // Extract file IDs from uploaded files
+    const fileIds = files.map((file) => file.id);
+    setFormData((prev) => ({ ...prev, fileIds }));
+  }, []);
+
+  const handleFileRemove = useCallback((fileId: string) => {
+    console.log("🗑️ File removed in form:", fileId);
+    setFormData((prev) => ({
+      ...prev,
+      fileIds: prev.fileIds?.filter((id) => id !== fileId) || [],
+    }));
+  }, []);
 
   return (
     <>
@@ -321,13 +329,15 @@ export function ItemForm({
               </label>
               <EnhancedFileUpload
                 onFileUpload={handleFileUpload}
+                onFileRemove={handleFileRemove}
                 accept="image/*"
                 multiple={true}
                 maxSize={25}
                 folder="items"
                 disabled={isReadOnly}
-                initialFiles={formData.imageFiles}
+                initialFileIds={formData.fileIds || []}
                 showPreview={true}
+                referenceTable="items"
               />
             </div>
 

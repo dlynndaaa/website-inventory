@@ -19,6 +19,7 @@ interface Item {
   category: string;
   unit: string;
   description: string;
+  file_ids?: string; // Comma-separated file IDs
 }
 
 export default function ItemsPage() {
@@ -108,23 +109,16 @@ export default function ItemsPage() {
   const handleFormSubmit = async (formData: any) => {
     try {
       if (formState.mode === "add") {
-        //
         const response = await apiClient.createItem({
           ...formData,
-          image_url:
-            formData.imageFiles.length > 0
-              ? formData.imageFiles.map((file: any) => file.name).join(",")
-              : "",
+          fileIds: formData.fileIds || [],
           condition: formData.condition === "Baik" ? "good" : "damaged",
         });
         setData((prev) => [...prev, response.item]);
       } else if (formState.mode === "edit" && formState.item) {
         const response = await apiClient.updateItem(formState.item.id, {
           ...formData,
-          image_url:
-            formData.imageFiles.length > 0
-              ? formData.imageFiles.map((file: any) => file.name).join(",")
-              : "",
+          fileIds: formData.fileIds || [],
           condition: formData.condition === "Baik" ? "good" : "damaged",
         });
         setData((prev) =>
@@ -136,6 +130,24 @@ export default function ItemsPage() {
     } catch (error) {
       console.error("Failed to save item:", error);
     }
+  };
+
+  // Convert file_ids string to array for form
+  const getInitialFormData = (item?: Item) => {
+    if (!item) return undefined;
+
+    return {
+      code: item.code,
+      name: item.name,
+      quantity: item.quantity,
+      unit: item.unit,
+      category: item.category,
+      description: item.description,
+      condition: item.condition === "good" ? "Baik" : "Rusak",
+      fileIds: item.file_ids
+        ? item.file_ids.split(",").filter((id) => id.trim())
+        : [],
+    };
   };
 
   return (
@@ -154,27 +166,13 @@ export default function ItemsPage() {
         onSearch={handleSearch}
         pagination={pagination}
         isLoading={isLoading}
-        // hideActions={userRole === "user"} // kalau komponen DataTable mendukung ini
       />
 
       <ItemForm
         open={formState.open}
         onOpenChange={(open) => setFormState((prev) => ({ ...prev, open }))}
         mode={formState.mode}
-        initialData={
-          formState.item
-            ? {
-                code: formState.item.code,
-                name: formState.item.name,
-                quantity: formState.item.quantity,
-                unit: formState.item.unit,
-                category: formState.item.category,
-                description: formState.item.description,
-                condition:
-                  formState.item.condition === "good" ? "Baik" : "Rusak",
-              }
-            : undefined
-        }
+        initialData={getInitialFormData(formState.item)}
         onSubmit={handleFormSubmit}
       />
     </DashboardLayout>

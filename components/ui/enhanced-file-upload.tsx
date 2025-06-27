@@ -2,7 +2,7 @@
 
 import type React from "react";
 
-import { useState, useCallback } from "react";
+import { useState, useCallback, useEffect, useRef } from "react";
 import {
   Upload,
   File,
@@ -37,9 +37,11 @@ interface EnhancedFileUploadProps {
   multiple?: boolean;
   disabled?: boolean;
   folder?: string;
-  initialFiles?: UploadedFile[];
+  initialFileIds?: string[]; // Changed from initialFiles to initialFileIds
   className?: string;
   showPreview?: boolean;
+  referenceTable?: string;
+  referenceId?: string;
 }
 
 export function EnhancedFileUpload({
@@ -50,19 +52,75 @@ export function EnhancedFileUpload({
   multiple = false,
   disabled = false,
   folder = "general",
-  initialFiles = [],
+  initialFileIds = [],
   className,
   showPreview = true,
+  referenceTable,
+  referenceId,
 }: EnhancedFileUploadProps) {
   const [dragActive, setDragActive] = useState(false);
-  const [uploadedFiles, setUploadedFiles] = useState<UploadedFile[]>(
-    initialFiles || []
-  );
+  const [uploadedFiles, setUploadedFiles] = useState<UploadedFile[]>([]);
   const [uploading, setUploading] = useState(false);
+  const [loading, setLoading] = useState(false);
+
+  // Use ref to track the last loaded file IDs to prevent infinite loops
+  const lastLoadedFileIds = useRef<string>("");
+  const isInitialLoad = useRef(true);
+
+  // Load initial files from IDs - with proper dependency management
+  useEffect(() => {
+    const fileIdsString = initialFileIds.join(",");
+
+    // Only load if file IDs have actually changed
+    if (
+      fileIdsString !== lastLoadedFileIds.current &&
+      initialFileIds.length > 0
+    ) {
+      lastLoadedFileIds.current = fileIdsString;
+      loadFilesFromIds(initialFileIds);
+    } else if (initialFileIds.length === 0 && !isInitialLoad.current) {
+      // Clear files if no IDs provided (but not on initial load)
+      setUploadedFiles([]);
+      onFileUpload?.([]);
+    }
+
+    isInitialLoad.current = false;
+  }, [initialFileIds.join(",")]); // Use join to create a stable dependency
+
+  const loadFilesFromIds = async (fileIds: string[]) => {
+    if (loading || fileIds.length === 0) return;
+
+    setLoading(true);
+    try {
+      console.log("🔄 Loading files from IDs:", fileIds);
+      const files = await FileUploadService.getFiles(fileIds);
+      const uploadedFiles: UploadedFile[] = files.map((file) => ({
+        id: file.id,
+        name: file.file_name,
+        originalName: file.original_name,
+        size: file.file_size,
+        type: file.mime_type,
+        url: FileUploadService.getPreviewUrl(file.id),
+        fileName: file.file_name,
+      }));
+
+      console.log("✅ Loaded files:", uploadedFiles.length);
+      setUploadedFiles(uploadedFiles);
+
+      // Only call onFileUpload if this is not the initial load to prevent loops
+      if (!isInitialLoad.current) {
+        onFileUpload?.(uploadedFiles);
+      }
+    } catch (error) {
+      console.error("Failed to load files:", error);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const handleFiles = useCallback(
     async (files: FileList | null) => {
-      if (!files || uploading) return;
+      if (!files || uploading || loading) return;
 
       console.log("📁 Processing files:", files.length);
 
@@ -85,7 +143,9 @@ export function EnhancedFileUpload({
       try {
         const uploadResults = await FileUploadService.uploadMultipleFiles(
           validFiles,
-          folder
+          folder,
+          referenceTable,
+          referenceId
         );
 
         console.log("📤 Upload results:", uploadResults);
@@ -95,15 +155,14 @@ export function EnhancedFileUpload({
             (result): result is UploadResponse & { success: true } =>
               result?.success === true
           )
-          .map((result, index) => ({
-            id: crypto.randomUUID(),
-            name: result.fileName ?? "unknown",
-            originalName:
-              result.originalName ?? validFiles[index]?.name ?? "unknown",
-            size: result.size ?? validFiles[index]?.size ?? 0,
-            type: result.type ?? validFiles[index]?.type ?? "unknown",
-            url: result.fileUrl ?? "#",
-            fileName: result.fileName ?? "unknown",
+          .map((result) => ({
+            id: result.file!.id,
+            name: result.file!.file_name,
+            originalName: result.file!.original_name,
+            size: result.file!.file_size,
+            type: result.file!.mime_type,
+            url: FileUploadService.getPreviewUrl(result.file!.id),
+            fileName: result.file!.file_name,
           }));
 
         console.log("✅ Successful uploads:", successfulUploads);
@@ -112,6 +171,11 @@ export function EnhancedFileUpload({
           ? [...uploadedFiles, ...successfulUploads]
           : successfulUploads;
         setUploadedFiles(newFiles);
+
+        // Update the last loaded file IDs to prevent reload
+        const newFileIds = newFiles.map((f) => f.id);
+        lastLoadedFileIds.current = newFileIds.join(",");
+
         onFileUpload?.(newFiles);
 
         // Show errors for failed uploads
@@ -132,7 +196,17 @@ export function EnhancedFileUpload({
         setUploading(false);
       }
     },
-    [maxSize, multiple, uploadedFiles, onFileUpload, folder, uploading]
+    [
+      maxSize,
+      multiple,
+      uploadedFiles,
+      onFileUpload,
+      folder,
+      uploading,
+      loading,
+      referenceTable,
+      referenceId,
+    ]
   );
 
   const handleDrag = useCallback((e: React.DragEvent) => {
@@ -150,31 +224,36 @@ export function EnhancedFileUpload({
       e.preventDefault();
       e.stopPropagation();
       setDragActive(false);
-      if (disabled || uploading) return;
+      if (disabled || uploading || loading) return;
       handleFiles(e.dataTransfer.files);
     },
-    [disabled, uploading, handleFiles]
+    [disabled, uploading, loading, handleFiles]
   );
 
   const handleChange = useCallback(
     (e: React.ChangeEvent<HTMLInputElement>) => {
       e.preventDefault();
-      if (disabled || uploading) return;
+      if (disabled || uploading || loading) return;
       handleFiles(e.target.files);
     },
-    [disabled, uploading, handleFiles]
+    [disabled, uploading, loading, handleFiles]
   );
 
   const removeFile = async (fileId: string) => {
     const fileToRemove = uploadedFiles.find((f) => f.id === fileId);
     if (!fileToRemove) return;
 
-    console.log("🗑️ Removing file:", fileToRemove.fileName);
+    console.log("🗑️ Removing file:", fileToRemove.id);
 
     try {
-      await FileUploadService.deleteFile(fileToRemove.fileName);
+      await FileUploadService.deleteFile(fileToRemove.id);
       const newFiles = uploadedFiles.filter((f) => f.id !== fileId);
       setUploadedFiles(newFiles);
+
+      // Update the last loaded file IDs
+      const newFileIds = newFiles.map((f) => f.id);
+      lastLoadedFileIds.current = newFileIds.join(",");
+
       onFileRemove?.(fileId);
       onFileUpload?.(newFiles);
     } catch (error) {
@@ -205,9 +284,8 @@ export function EnhancedFileUpload({
   };
 
   const downloadFile = (file: UploadedFile) => {
-    console.log("⬇️ Downloading file:", file.fileName);
-    const downloadUrl =
-      FileUploadService.getDownloadUrl?.(file.fileName) ?? "#";
+    console.log("⬇️ Downloading file:", file.id);
+    const downloadUrl = FileUploadService.getDownloadUrl(file.id);
     const link = document.createElement("a");
     link.href = downloadUrl;
     link.download = file.originalName;
@@ -215,6 +293,15 @@ export function EnhancedFileUpload({
     link.click();
     document.body.removeChild(link);
   };
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center p-8">
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+        <span className="ml-2 text-gray-600">Loading files...</span>
+      </div>
+    );
+  }
 
   return (
     <div className={cn("space-y-4", className)}>
@@ -233,6 +320,7 @@ export function EnhancedFileUpload({
         onClick={() =>
           !disabled &&
           !uploading &&
+          !loading &&
           document.getElementById("file-upload")?.click()
         }
       >
@@ -243,7 +331,7 @@ export function EnhancedFileUpload({
           multiple={multiple}
           accept={accept}
           onChange={handleChange}
-          disabled={disabled || uploading}
+          disabled={disabled || uploading || loading}
         />
         <div className="text-center">
           <Upload
@@ -289,7 +377,7 @@ export function EnhancedFileUpload({
                   <p className="text-xs text-gray-500">
                     {FileUploadService.formatFileSize(file.size ?? 0)}
                   </p>
-                  <p className="text-xs text-blue-500">{file.url ?? "#"}</p>
+                  <p className="text-xs text-blue-500">ID: {file.id}</p>
                 </div>
               </div>
               <div className="flex items-center space-x-2">

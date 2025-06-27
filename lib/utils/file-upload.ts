@@ -1,11 +1,29 @@
 export interface UploadResponse {
   success: boolean;
-  fileUrl?: string;
+  file?: {
+    id: string;
+    original_name: string;
+    file_name: string;
+    file_path: string;
+    file_size: number;
+    mime_type: string;
+    folder: string;
+    file_type: string;
+  };
   fileName?: string;
-  originalName?: string;
-  size?: number;
-  type?: string;
   error?: string;
+}
+
+export interface FileData {
+  id: string;
+  original_name: string;
+  file_name: string;
+  file_path: string;
+  file_size: number;
+  mime_type: string;
+  folder: string;
+  file_type: string;
+  created_date: string;
 }
 
 export class FileUploadService {
@@ -13,7 +31,9 @@ export class FileUploadService {
 
   static async uploadFile(
     file: File,
-    folder = "general"
+    folder = "general",
+    referenceTable?: string,
+    referenceId?: string
   ): Promise<UploadResponse> {
     try {
       console.log("🚀 Starting file upload:", file.name);
@@ -22,10 +42,12 @@ export class FileUploadService {
       const formData = new FormData();
       formData.append("file", file);
       formData.append("folder", folder);
+      if (referenceTable) formData.append("referenceTable", referenceTable);
+      if (referenceId) formData.append("referenceId", referenceId);
 
       console.log("📤 Sending upload request...");
 
-      const response = await fetch(`${this.baseUrl}/upload`, {
+      const response = await fetch(`${this.baseUrl}/files`, {
         method: "POST",
         body: formData,
         credentials: "include",
@@ -44,7 +66,16 @@ export class FileUploadService {
       const result = await response.json();
       console.log("✅ Upload successful:", result);
 
-      return result;
+      // Return the first successful upload
+      const successfulUpload = result.results?.find((r: any) => r.success);
+      if (successfulUpload) {
+        return {
+          success: true,
+          file: successfulUpload.file,
+        };
+      } else {
+        throw new Error("Upload failed");
+      }
     } catch (error) {
       console.error("💥 Upload error:", error);
       return {
@@ -56,26 +87,94 @@ export class FileUploadService {
 
   static async uploadMultipleFiles(
     files: File[],
-    folder = "general"
+    folder = "general",
+    referenceTable?: string,
+    referenceId?: string
   ): Promise<UploadResponse[]> {
     console.log("📤 Uploading multiple files:", files.length);
-    const uploadPromises = files.map((file) => this.uploadFile(file, folder));
-    return Promise.all(uploadPromises);
+
+    try {
+      const formData = new FormData();
+      files.forEach((file) => formData.append("file", file));
+      formData.append("folder", folder);
+      if (referenceTable) formData.append("referenceTable", referenceTable);
+      if (referenceId) formData.append("referenceId", referenceId);
+
+      const response = await fetch(`${this.baseUrl}/files`, {
+        method: "POST",
+        body: formData,
+        credentials: "include",
+      });
+
+      if (!response.ok) {
+        throw new Error("Upload failed");
+      }
+
+      const result = await response.json();
+
+      return result.results.map((r: any) => ({
+        success: r.success,
+        file: r.file,
+        error: r.error,
+      }));
+    } catch (error) {
+      console.error("💥 Multiple upload error:", error);
+      return files.map(() => ({
+        success: false,
+        error: error instanceof Error ? error.message : "Upload failed",
+      }));
+    }
   }
 
-  static async deleteFile(
-    fileName: string
-  ): Promise<{ success: boolean; error?: string }> {
+  static async getFiles(fileIds: string[]): Promise<FileData[]> {
     try {
-      console.log("🗑️ Deleting file:", fileName);
-
       const response = await fetch(
-        `${this.baseUrl}/upload/${encodeURIComponent(fileName)}`,
+        `${this.baseUrl}/files?fileIds=${fileIds.join(",")}`,
         {
-          method: "DELETE",
           credentials: "include",
         }
       );
+
+      if (!response.ok) {
+        throw new Error("Failed to get files");
+      }
+
+      const result = await response.json();
+      return result.files || [];
+    } catch (error) {
+      console.error("💥 Get files error:", error);
+      return [];
+    }
+  }
+
+  static async getFile(fileId: string): Promise<FileData | null> {
+    try {
+      const response = await fetch(`${this.baseUrl}/files/${fileId}`, {
+        credentials: "include",
+      });
+
+      if (!response.ok) {
+        return null;
+      }
+
+      const result = await response.json();
+      return result.file;
+    } catch (error) {
+      console.error("💥 Get file error:", error);
+      return null;
+    }
+  }
+
+  static async deleteFile(
+    fileId: string
+  ): Promise<{ success: boolean; error?: string }> {
+    try {
+      console.log("🗑️ Deleting file:", fileId);
+
+      const response = await fetch(`${this.baseUrl}/files/${fileId}`, {
+        method: "DELETE",
+        credentials: "include",
+      });
 
       if (!response.ok) {
         const error = await response
@@ -95,16 +194,16 @@ export class FileUploadService {
     }
   }
 
-  static getFileUrl(fileName: string): string {
-    const url = `${this.baseUrl}/files/${fileName}`;
-    console.log("🔗 Generated file URL:", url);
-    return url;
+  static getFileUrl(fileId: string): string {
+    return `${this.baseUrl}/files/download/${fileId}`;
   }
 
-  static getDownloadUrl(fileName: string): string {
-    const url = `${this.baseUrl}/files/${fileName}?download=true`;
-    console.log("⬇️ Generated download URL:", url);
-    return url;
+  static getDownloadUrl(fileId: string): string {
+    return `${this.baseUrl}/files/download/${fileId}`;
+  }
+
+  static getPreviewUrl(fileId: string): string {
+    return `${this.baseUrl}/files/download/${fileId}`;
   }
 
   static isImageFile(fileName: string): boolean {
