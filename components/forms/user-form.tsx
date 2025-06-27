@@ -1,167 +1,196 @@
-"use client"
+"use client";
 
-import type React from "react"
+import type React from "react";
 
-import { useState, useEffect } from "react"
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
-import { Button } from "@/components/ui/button"
-import { FormField } from "@/components/ui/form-field"
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
-import { ConfirmationDialog } from "@/components/ui/confirmation-dialog"
-import { Camera, X } from "lucide-react"
+import { useState, useEffect } from "react";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { Button } from "@/components/ui/button";
+import { FormField } from "@/components/ui/form-field";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { ConfirmationDialog } from "@/components/ui/confirmation-dialog";
+import { Camera, X } from "lucide-react";
 
 interface UserFormData {
-  name: string
-  email: string
-  role: "admin" | "user"
+  name: string;
+  email: string;
+  role: "admin" | "user";
   // Admin fields
-  employeeId?: string
-  workUnit?: string
-  phone?: string
+  employee_id?: string;
+  work_unit?: string;
+  phone?: string;
   // User fields
-  studentId?: string
-  studyProgram?: string
-  faculty?: string
-  whatsapp?: string
+  student_id?: string;
+  study_program?: string;
+  faculty?: string;
+  whatsapp?: string;
   // Common fields
-  password?: string
-  confirmPassword?: string
-  avatar?: string
-  status: "active" | "inactive"
+  password?: string;
+  confirm_password?: string;
+  avatar?: string;
+  status: "active" | "inactive";
 }
 
 interface UserFormProps {
-  open: boolean
-  onOpenChange: (open: boolean) => void
-  mode: "add" | "edit" | "view"
-  initialData?: Partial<UserFormData>
-  onSubmit?: (data: UserFormData) => void
-  title?: string
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  mode: "add" | "edit" | "view";
+  initialData?: Partial<UserFormData>;
+  onSubmit?: (data: UserFormData) => void;
+  title?: string;
 }
 
 const roleOptions = [
   { value: "admin", label: "Administrator" },
   { value: "user", label: "User" },
-]
+];
 
 const workUnitOptions = [
   { value: "teknik-informatika", label: "Teknik Informatika" },
   { value: "sistem-informasi", label: "Sistem Informasi" },
   { value: "teknik-komputer", label: "Teknik Komputer" },
-]
+];
 
 const studyProgramOptions = [
   { value: "teknik-informatika", label: "Teknik Informatika" },
   { value: "sistem-informasi", label: "Sistem Informasi" },
   { value: "teknik-komputer", label: "Teknik Komputer" },
   { value: "manajemen-informatika", label: "Manajemen Informatika" },
-]
+];
 
 const facultyOptions = [
   { value: "teknik", label: "Fakultas Teknik" },
   { value: "ilmu-komputer", label: "Fakultas Ilmu Komputer" },
   { value: "sains-teknologi", label: "Fakultas Sains dan Teknologi" },
-]
+];
 
 const statusOptions = [
   { value: "active", label: "Aktif" },
   { value: "inactive", label: "Tidak Aktif" },
-]
+];
 
-export function UserForm({ open, onOpenChange, mode, initialData, onSubmit, title }: UserFormProps) {
+export function UserForm({
+  open,
+  onOpenChange,
+  mode,
+  initialData,
+  onSubmit,
+  title,
+}: UserFormProps) {
   const [formData, setFormData] = useState<UserFormData>({
     name: "",
     email: "",
     role: "user",
     status: "active",
-  })
-  const [errors, setErrors] = useState<Record<string, string>>({})
-  const [showConfirmation, setShowConfirmation] = useState(false)
-  const [isLoading, setIsLoading] = useState(false)
+  });
+  const [errors, setErrors] = useState<Record<string, string>>({});
+  const [showConfirmation, setShowConfirmation] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
 
-  const isReadOnly = mode === "view"
-  const isEdit = mode === "edit"
+  const isReadOnly = mode === "view";
+  const isEdit = mode === "edit";
   const formTitle =
-    title || (mode === "add" ? "Tambah Pengguna" : mode === "edit" ? "Edit Pengguna" : "Detail Pengguna")
+    title ||
+    (mode === "add"
+      ? "Tambah Pengguna"
+      : mode === "edit"
+      ? "Edit Pengguna"
+      : "Detail Pengguna");
 
   useEffect(() => {
     if (initialData) {
-      setFormData((prev) => ({ ...prev, ...initialData }))
+      setFormData((prev) => ({ ...prev, ...initialData }));
     } else {
       setFormData({
         name: "",
         email: "",
         role: "user",
         status: "active",
-      })
+      });
     }
-    setErrors({})
-  }, [initialData, open])
+    setErrors({});
+  }, [initialData, open]);
 
   const validateForm = (): boolean => {
-    const newErrors: Record<string, string> = {}
+    const newErrors: Record<string, string> = {};
 
-    if (!formData.name.trim()) newErrors.name = "Nama lengkap harus diisi"
-    if (!formData.email.trim()) newErrors.email = "Email harus diisi"
-    if (!formData.role) newErrors.role = "Role harus dipilih"
+    if (!formData.name.trim()) newErrors.name = "Nama lengkap harus diisi";
+    if (!formData.email.trim()) newErrors.email = "Email harus diisi";
+    if (!formData.role) newErrors.role = "Role harus dipilih";
 
     // Validate based on role
     if (formData.role === "admin") {
-      if (!formData.employeeId?.trim()) newErrors.employeeId = "ID Pegawai harus diisi"
-      if (!formData.workUnit) newErrors.workUnit = "Unit kerja harus dipilih"
-      if (!formData.phone?.trim()) newErrors.phone = "Nomor telepon harus diisi"
+      if (!formData.employee_id?.trim())
+        newErrors.employee_id = "ID Pegawai harus diisi";
+      if (!formData.work_unit) newErrors.work_unit = "Unit kerja harus dipilih";
+      if (!formData.phone?.trim())
+        newErrors.phone = "Nomor telepon harus diisi";
     } else {
-      if (!formData.studentId?.trim()) newErrors.studentId = "NIM harus diisi"
-      if (!formData.studyProgram) newErrors.studyProgram = "Program studi harus dipilih"
-      if (!formData.faculty) newErrors.faculty = "Fakultas harus dipilih"
-      if (!formData.whatsapp?.trim()) newErrors.whatsapp = "Nomor WhatsApp harus diisi"
+      if (!formData.student_id?.trim())
+        newErrors.student_id = "NIM harus diisi";
+      if (!formData.study_program)
+        newErrors.study_program = "Program studi harus dipilih";
+      if (!formData.faculty) newErrors.faculty = "Fakultas harus dipilih";
+      if (!formData.whatsapp?.trim())
+        newErrors.whatsapp = "Nomor WhatsApp harus diisi";
     }
 
     // Password validation for new users
     if (mode === "add") {
-      if (!formData.password?.trim()) newErrors.password = "Password harus diisi"
+      if (!formData.password?.trim())
+        newErrors.password = "Password harus diisi";
       if (formData.password && formData.password.length < 8) {
-        newErrors.password = "Password minimal 8 karakter"
+        newErrors.password = "Password minimal 8 karakter";
       }
-      if (formData.password !== formData.confirmPassword) {
-        newErrors.confirmPassword = "Konfirmasi password tidak cocok"
+      if (formData.password !== formData.confirm_password) {
+        newErrors.confirm_password = "Konfirmasi password tidak cocok";
       }
     }
 
-    setErrors(newErrors)
-    return Object.keys(newErrors).length === 0
-  }
+    setErrors(newErrors);
+    return Object.keys(newErrors).length === 0;
+  };
 
   const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault()
-    if (isReadOnly) return
+    e.preventDefault();
+    if (isReadOnly) return;
 
     if (validateForm()) {
-      setShowConfirmation(true)
+      setShowConfirmation(true);
     }
-  }
+  };
 
   const handleConfirmSave = async () => {
-    setIsLoading(true)
+    setIsLoading(true);
     try {
-      await new Promise((resolve) => setTimeout(resolve, 1000)) // Simulate API call
-      onSubmit?.(formData)
-      setShowConfirmation(false)
-      onOpenChange(false)
+      await new Promise((resolve) => setTimeout(resolve, 1000)); // Simulate API call
+      onSubmit?.(formData);
+      setShowConfirmation(false);
+      onOpenChange(false);
     } catch (error) {
-      console.error("Error saving user:", error)
+      console.error("Error saving user:", error);
     } finally {
-      setIsLoading(false)
+      setIsLoading(false);
     }
-  }
+  };
 
   const handleInputChange = (field: keyof UserFormData, value: any) => {
-    setFormData((prev) => ({ ...prev, [field]: value }))
+    setFormData((prev) => ({ ...prev, [field]: value }));
     if (errors[field]) {
-      setErrors((prev) => ({ ...prev, [field]: "" }))
+      setErrors((prev) => ({ ...prev, [field]: "" }));
     }
-  }
+  };
 
   const handleRoleChange = (role: "admin" | "user") => {
     setFormData((prev) => ({
@@ -175,12 +204,12 @@ export function UserForm({ open, onOpenChange, mode, initialData, onSubmit, titl
       studyProgram: "",
       faculty: "",
       whatsapp: "",
-    }))
-  }
+    }));
+  };
 
   const handleAvatarChange = () => {
-    console.log("Change avatar clicked")
-  }
+    console.log("Change avatar clicked");
+  };
 
   return (
     <>
@@ -188,8 +217,14 @@ export function UserForm({ open, onOpenChange, mode, initialData, onSubmit, titl
         <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <div className="flex items-center justify-between">
-              <DialogTitle className="text-xl font-semibold">{formTitle}</DialogTitle>
-              <Button variant="ghost" size="sm" onClick={() => onOpenChange(false)}>
+              <DialogTitle className="text-xl font-semibold">
+                {formTitle}
+              </DialogTitle>
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => onOpenChange(false)}
+              >
                 <X className="h-4 w-4" />
               </Button>
             </div>
@@ -200,7 +235,10 @@ export function UserForm({ open, onOpenChange, mode, initialData, onSubmit, titl
             <div className="flex items-center space-x-4 p-4 bg-gray-50 rounded-lg">
               <div className="relative">
                 <Avatar className="w-16 h-16">
-                  <AvatarImage src={formData.avatar || "/placeholder.svg"} alt="Profile" />
+                  <AvatarImage
+                    src={formData.avatar || "/placeholder.svg"}
+                    alt="Profile"
+                  />
                   <AvatarFallback className="bg-blue-500 text-white text-lg">
                     {formData.name.charAt(0).toUpperCase() || "U"}
                   </AvatarFallback>
@@ -216,8 +254,12 @@ export function UserForm({ open, onOpenChange, mode, initialData, onSubmit, titl
                 )}
               </div>
               <div>
-                <h3 className="text-lg font-medium text-gray-900">{formData.name || "Nama Pengguna"}</h3>
-                <p className="text-gray-600">{formData.email || "email@example.com"}</p>
+                <h3 className="text-lg font-medium text-gray-900">
+                  {formData.name || "Nama Pengguna"}
+                </h3>
+                <p className="text-gray-600">
+                  {formData.email || "email@example.com"}
+                </p>
                 {!isReadOnly && (
                   <button
                     type="button"
@@ -232,7 +274,9 @@ export function UserForm({ open, onOpenChange, mode, initialData, onSubmit, titl
 
             {/* Basic Information */}
             <div className="space-y-4">
-              <h3 className="text-lg font-medium text-gray-900">Informasi Dasar</h3>
+              <h3 className="text-lg font-medium text-gray-900">
+                Informasi Dasar
+              </h3>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <FormField
                   label="Nama Lengkap"
@@ -261,7 +305,11 @@ export function UserForm({ open, onOpenChange, mode, initialData, onSubmit, titl
                   <label className="block text-sm font-medium text-gray-700">
                     Role <span className="text-red-500">*</span>
                   </label>
-                  <Select value={formData.role} onValueChange={handleRoleChange} disabled={isReadOnly}>
+                  <Select
+                    value={formData.role}
+                    onValueChange={handleRoleChange}
+                    disabled={isReadOnly}
+                  >
                     <SelectTrigger>
                       <SelectValue placeholder="Pilih role" />
                     </SelectTrigger>
@@ -273,7 +321,9 @@ export function UserForm({ open, onOpenChange, mode, initialData, onSubmit, titl
                       ))}
                     </SelectContent>
                   </Select>
-                  {errors.role && <p className="text-sm text-red-600">{errors.role}</p>}
+                  {errors.role && (
+                    <p className="text-sm text-red-600">{errors.role}</p>
+                  )}
                 </div>
 
                 <div className="space-y-2">
@@ -282,7 +332,9 @@ export function UserForm({ open, onOpenChange, mode, initialData, onSubmit, titl
                   </label>
                   <Select
                     value={formData.status}
-                    onValueChange={(value) => handleInputChange("status", value)}
+                    onValueChange={(value) =>
+                      handleInputChange("status", value)
+                    }
                     disabled={isReadOnly}
                   >
                     <SelectTrigger>
@@ -303,7 +355,9 @@ export function UserForm({ open, onOpenChange, mode, initialData, onSubmit, titl
             {/* Role-specific Information */}
             <div className="space-y-4">
               <h3 className="text-lg font-medium text-gray-900">
-                {formData.role === "admin" ? "Informasi Pegawai" : "Informasi Mahasiswa"}
+                {formData.role === "admin"
+                  ? "Informasi Pegawai"
+                  : "Informasi Mahasiswa"}
               </h3>
 
               {formData.role === "admin" ? (
@@ -311,9 +365,11 @@ export function UserForm({ open, onOpenChange, mode, initialData, onSubmit, titl
                   <FormField
                     label="ID Pegawai"
                     placeholder="Masukkan ID pegawai"
-                    value={formData.employeeId || ""}
-                    onChange={(e) => handleInputChange("employeeId", e.target.value)}
-                    error={errors.employeeId}
+                    value={formData.employee_id || ""}
+                    onChange={(e) =>
+                      handleInputChange("employee_id", e.target.value)
+                    }
+                    error={errors.employee_id}
                     disabled={isReadOnly}
                     required
                   />
@@ -333,8 +389,10 @@ export function UserForm({ open, onOpenChange, mode, initialData, onSubmit, titl
                       Unit Kerja <span className="text-red-500">*</span>
                     </label>
                     <Select
-                      value={formData.workUnit || ""}
-                      onValueChange={(value) => handleInputChange("workUnit", value)}
+                      value={formData.work_unit || ""}
+                      onValueChange={(value) =>
+                        handleInputChange("work_unit", value)
+                      }
                       disabled={isReadOnly}
                     >
                       <SelectTrigger>
@@ -348,7 +406,9 @@ export function UserForm({ open, onOpenChange, mode, initialData, onSubmit, titl
                         ))}
                       </SelectContent>
                     </Select>
-                    {errors.workUnit && <p className="text-sm text-red-600">{errors.workUnit}</p>}
+                    {errors.workUnit && (
+                      <p className="text-sm text-red-600">{errors.workUnit}</p>
+                    )}
                   </div>
                 </div>
               ) : (
@@ -356,9 +416,11 @@ export function UserForm({ open, onOpenChange, mode, initialData, onSubmit, titl
                   <FormField
                     label="NIM"
                     placeholder="Masukkan NIM"
-                    value={formData.studentId || ""}
-                    onChange={(e) => handleInputChange("studentId", e.target.value)}
-                    error={errors.studentId}
+                    value={formData.student_id || ""}
+                    onChange={(e) =>
+                      handleInputChange("student_id", e.target.value)
+                    }
+                    error={errors.student_id}
                     disabled={isReadOnly}
                     required
                   />
@@ -367,7 +429,9 @@ export function UserForm({ open, onOpenChange, mode, initialData, onSubmit, titl
                     label="Nomor WhatsApp"
                     placeholder="Masukkan nomor WhatsApp"
                     value={formData.whatsapp || ""}
-                    onChange={(e) => handleInputChange("whatsapp", e.target.value)}
+                    onChange={(e) =>
+                      handleInputChange("whatsapp", e.target.value)
+                    }
                     error={errors.whatsapp}
                     disabled={isReadOnly}
                     required
@@ -378,8 +442,10 @@ export function UserForm({ open, onOpenChange, mode, initialData, onSubmit, titl
                       Program Studi <span className="text-red-500">*</span>
                     </label>
                     <Select
-                      value={formData.studyProgram || ""}
-                      onValueChange={(value) => handleInputChange("studyProgram", value)}
+                      value={formData.study_program || ""}
+                      onValueChange={(value) =>
+                        handleInputChange("study_program", value)
+                      }
                       disabled={isReadOnly}
                     >
                       <SelectTrigger>
@@ -393,7 +459,11 @@ export function UserForm({ open, onOpenChange, mode, initialData, onSubmit, titl
                         ))}
                       </SelectContent>
                     </Select>
-                    {errors.studyProgram && <p className="text-sm text-red-600">{errors.studyProgram}</p>}
+                    {errors.studyProgram && (
+                      <p className="text-sm text-red-600">
+                        {errors.studyProgram}
+                      </p>
+                    )}
                   </div>
 
                   <div className="space-y-2">
@@ -402,7 +472,9 @@ export function UserForm({ open, onOpenChange, mode, initialData, onSubmit, titl
                     </label>
                     <Select
                       value={formData.faculty || ""}
-                      onValueChange={(value) => handleInputChange("faculty", value)}
+                      onValueChange={(value) =>
+                        handleInputChange("faculty", value)
+                      }
                       disabled={isReadOnly}
                     >
                       <SelectTrigger>
@@ -416,7 +488,9 @@ export function UserForm({ open, onOpenChange, mode, initialData, onSubmit, titl
                         ))}
                       </SelectContent>
                     </Select>
-                    {errors.faculty && <p className="text-sm text-red-600">{errors.faculty}</p>}
+                    {errors.faculty && (
+                      <p className="text-sm text-red-600">{errors.faculty}</p>
+                    )}
                   </div>
                 </div>
               )}
@@ -432,7 +506,9 @@ export function UserForm({ open, onOpenChange, mode, initialData, onSubmit, titl
                     type="password"
                     placeholder="Masukkan password"
                     value={formData.password || ""}
-                    onChange={(e) => handleInputChange("password", e.target.value)}
+                    onChange={(e) =>
+                      handleInputChange("password", e.target.value)
+                    }
                     error={errors.password}
                     disabled={isReadOnly}
                     required
@@ -443,9 +519,11 @@ export function UserForm({ open, onOpenChange, mode, initialData, onSubmit, titl
                     label="Konfirmasi Password"
                     type="password"
                     placeholder="Konfirmasi password"
-                    value={formData.confirmPassword || ""}
-                    onChange={(e) => handleInputChange("confirmPassword", e.target.value)}
-                    error={errors.confirmPassword}
+                    value={formData.confirm_password || ""}
+                    onChange={(e) =>
+                      handleInputChange("confirm_password", e.target.value)
+                    }
+                    error={errors.confirm_password}
                     disabled={isReadOnly}
                     required
                   />
@@ -454,11 +532,19 @@ export function UserForm({ open, onOpenChange, mode, initialData, onSubmit, titl
             )}
 
             <div className="flex justify-end space-x-3 pt-6 border-t">
-              <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => onOpenChange(false)}
+              >
                 {isReadOnly ? "Tutup" : "Batal"}
               </Button>
               {!isReadOnly && (
-                <Button type="submit" className="bg-blue-600 hover:bg-blue-700" disabled={isLoading}>
+                <Button
+                  type="submit"
+                  className="bg-blue-600 hover:bg-blue-700"
+                  disabled={isLoading}
+                >
                   {isLoading ? "Menyimpan..." : "Simpan"}
                 </Button>
               )}
@@ -471,11 +557,13 @@ export function UserForm({ open, onOpenChange, mode, initialData, onSubmit, titl
         open={showConfirmation}
         onOpenChange={setShowConfirmation}
         title="Konfirmasi Simpan"
-        description={`Apakah Anda yakin ingin ${mode === "add" ? "menambah" : "mengubah"} data pengguna ini?`}
+        description={`Apakah Anda yakin ingin ${
+          mode === "add" ? "menambah" : "mengubah"
+        } data pengguna ini?`}
         confirmText="Ya, Simpan"
         cancelText="Batal"
         onConfirm={handleConfirmSave}
       />
     </>
-  )
+  );
 }
