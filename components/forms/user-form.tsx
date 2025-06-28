@@ -2,7 +2,7 @@
 
 import type React from "react";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import {
   Dialog,
   DialogContent,
@@ -21,6 +21,8 @@ import {
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { ConfirmationDialog } from "@/components/ui/confirmation-dialog";
 import { Camera, X } from "lucide-react";
+import { useToast } from "@/hooks/use-toast";
+import { FileUploadService } from "@/lib/utils/file-upload";
 
 interface UserFormData {
   name: string;
@@ -56,13 +58,13 @@ const roleOptions = [
   { value: "user", label: "User" },
 ];
 
-const workUnitOptions = [
+const work_unitOptions = [
   { value: "teknik-informatika", label: "Teknik Informatika" },
   { value: "sistem-informasi", label: "Sistem Informasi" },
   { value: "teknik-komputer", label: "Teknik Komputer" },
 ];
 
-const studyProgramOptions = [
+const study_programOptions = [
   { value: "teknik-informatika", label: "Teknik Informatika" },
   { value: "sistem-informasi", label: "Sistem Informasi" },
   { value: "teknik-komputer", label: "Teknik Komputer" },
@@ -97,6 +99,12 @@ export function UserForm({
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [showConfirmation, setShowConfirmation] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
+  const [avatarFile, setAvatarFile] = useState<File | null>(null);
+  const [avatarPreview, setAvatarPreview] = useState<string | null>(null);
+  const [isUploadingAvatar, setIsUploadingAvatar] = useState(false);
+  const [avatarFileId, setAvatarFileId] = useState<string | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const { toast } = useToast();
 
   const isReadOnly = mode === "view";
   const isEdit = mode === "edit";
@@ -111,6 +119,11 @@ export function UserForm({
   useEffect(() => {
     if (initialData) {
       setFormData((prev) => ({ ...prev, ...initialData }));
+
+      // Load avatar if there's an avatar file ID
+      if (initialData.avatar) {
+        loadAvatarPreview(initialData.avatar);
+      }
     } else {
       setFormData({
         name: "",
@@ -118,9 +131,25 @@ export function UserForm({
         role: "user",
         status: "active",
       });
+      setAvatarPreview(null);
+      setAvatarFileId(null);
     }
     setErrors({});
+    setAvatarFile(null);
   }, [initialData, open]);
+
+  const loadAvatarPreview = async (fileId: string) => {
+    try {
+      const fileData = await FileUploadService.getFile(fileId);
+      if (fileData) {
+        const previewUrl = FileUploadService.getPreviewUrl(fileId);
+        setAvatarPreview(previewUrl);
+        setAvatarFileId(fileId);
+      }
+    } catch (error) {
+      console.error("Failed to load avatar:", error);
+    }
+  };
 
   const validateForm = (): boolean => {
     const newErrors: Record<string, string> = {};
@@ -174,12 +203,41 @@ export function UserForm({
   const handleConfirmSave = async () => {
     setIsLoading(true);
     try {
+      // Upload avatar first if there's a new file
+      let avatarFileId = formData.avatar;
+      if (avatarFile) {
+        const uploadResult = await FileUploadService.uploadFile(
+          avatarFile,
+          "avatars",
+          "users"
+        );
+        if (uploadResult.success && uploadResult.file) {
+          avatarFileId = uploadResult.file.id;
+          setAvatarFileId(avatarFileId);
+        } else {
+          throw new Error("Failed to upload avatar");
+        }
+      }
+
+      const updatedData = { ...formData, avatar: avatarFileId };
       await new Promise((resolve) => setTimeout(resolve, 1000)); // Simulate API call
-      onSubmit?.(formData);
+      onSubmit?.(updatedData);
       setShowConfirmation(false);
       onOpenChange(false);
+
+      toast({
+        title: "Pengguna berhasil disimpan",
+        description: `Data pengguna ${
+          mode === "add" ? "ditambahkan" : "diperbarui"
+        } dengan sukses.`,
+      });
     } catch (error) {
       console.error("Error saving user:", error);
+      toast({
+        title: "Gagal menyimpan pengguna",
+        description: "Terjadi kesalahan saat menyimpan data pengguna.",
+        variant: "destructive",
+      });
     } finally {
       setIsLoading(false);
     }
@@ -197,18 +255,56 @@ export function UserForm({
       ...prev,
       role,
       // Clear role-specific fields when role changes
-      employeeId: "",
-      workUnit: "",
+      employee_id: "",
+      work_unit: "",
       phone: "",
-      studentId: "",
-      studyProgram: "",
+      student_id: "",
+      study_program: "",
       faculty: "",
       whatsapp: "",
     }));
   };
 
-  const handleAvatarChange = () => {
-    console.log("Change avatar clicked");
+  const handleAvatarClick = () => {
+    if (!isReadOnly) {
+      fileInputRef.current?.click();
+    }
+  };
+
+  const handleAvatarChange = async (
+    event: React.ChangeEvent<HTMLInputElement>
+  ) => {
+    const file = event.target.files?.[0];
+    if (file) {
+      // Validate file type
+      if (!file.type.startsWith("image/")) {
+        toast({
+          title: "File tidak valid",
+          description: "Silakan pilih file gambar (JPG, PNG, dll.)",
+          variant: "destructive",
+        });
+        return;
+      }
+
+      // Validate file size (max 5MB)
+      if (file.size > 5 * 1024 * 1024) {
+        toast({
+          title: "File terlalu besar",
+          description: "Ukuran file maksimal 5MB",
+          variant: "destructive",
+        });
+        return;
+      }
+
+      setAvatarFile(file);
+
+      // Create preview
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        setAvatarPreview(e.target?.result as string);
+      };
+      reader.readAsDataURL(file);
+    }
   };
 
   return (
@@ -236,7 +332,7 @@ export function UserForm({
               <div className="relative">
                 <Avatar className="w-16 h-16">
                   <AvatarImage
-                    src={formData.avatar || "/placeholder.svg"}
+                    src={avatarPreview || "/placeholder.svg"}
                     alt="Profile"
                   />
                   <AvatarFallback className="bg-blue-500 text-white text-lg">
@@ -246,12 +342,24 @@ export function UserForm({
                 {!isReadOnly && (
                   <button
                     type="button"
-                    onClick={handleAvatarChange}
-                    className="absolute -bottom-1 -right-1 bg-blue-600 text-white rounded-full p-1.5 hover:bg-blue-700 transition-colors"
+                    onClick={handleAvatarClick}
+                    disabled={isUploadingAvatar}
+                    className="absolute -bottom-1 -right-1 bg-blue-600 text-white rounded-full p-1.5 hover:bg-blue-700 transition-colors disabled:opacity-50"
                   >
-                    <Camera className="w-3 h-3" />
+                    {isUploadingAvatar ? (
+                      <div className="w-3 h-3 animate-spin rounded-full border border-white border-t-transparent" />
+                    ) : (
+                      <Camera className="w-3 h-3" />
+                    )}
                   </button>
                 )}
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  accept="image/*"
+                  onChange={handleAvatarChange}
+                  className="hidden"
+                />
               </div>
               <div>
                 <h3 className="text-lg font-medium text-gray-900">
@@ -263,10 +371,11 @@ export function UserForm({
                 {!isReadOnly && (
                   <button
                     type="button"
-                    onClick={handleAvatarChange}
-                    className="text-blue-600 hover:text-blue-800 text-sm mt-1 transition-colors"
+                    onClick={handleAvatarClick}
+                    disabled={isUploadingAvatar}
+                    className="text-blue-600 hover:text-blue-800 text-sm mt-1 transition-colors disabled:opacity-50"
                   >
-                    Ubah Foto
+                    {isUploadingAvatar ? "Mengunggah..." : "Ubah Foto"}
                   </button>
                 )}
               </div>
@@ -399,15 +508,15 @@ export function UserForm({
                         <SelectValue placeholder="Pilih unit kerja" />
                       </SelectTrigger>
                       <SelectContent>
-                        {workUnitOptions.map((unit) => (
+                        {work_unitOptions.map((unit) => (
                           <SelectItem key={unit.value} value={unit.value}>
                             {unit.label}
                           </SelectItem>
                         ))}
                       </SelectContent>
                     </Select>
-                    {errors.workUnit && (
-                      <p className="text-sm text-red-600">{errors.workUnit}</p>
+                    {errors.work_unit && (
+                      <p className="text-sm text-red-600">{errors.work_unit}</p>
                     )}
                   </div>
                 </div>
@@ -452,16 +561,16 @@ export function UserForm({
                         <SelectValue placeholder="Pilih program studi" />
                       </SelectTrigger>
                       <SelectContent>
-                        {studyProgramOptions.map((program) => (
+                        {study_programOptions.map((program) => (
                           <SelectItem key={program.value} value={program.value}>
                             {program.label}
                           </SelectItem>
                         ))}
                       </SelectContent>
                     </Select>
-                    {errors.studyProgram && (
+                    {errors.study_program && (
                       <p className="text-sm text-red-600">
-                        {errors.studyProgram}
+                        {errors.study_program}
                       </p>
                     )}
                   </div>
